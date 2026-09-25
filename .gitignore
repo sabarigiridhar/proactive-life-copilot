@@ -1,0 +1,12 @@
+# Sensitive Data (NEVER push this!)
+.env
+
+# Local Databases
+life_copilot.db
+chroma_data/
+
+# Python Cache & Environments
+__pycache__/
+*.pyc
+.venv/
+venv/
