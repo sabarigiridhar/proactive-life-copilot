@@ -5,6 +5,7 @@ from langgraph.graph import StateGraph, END
 import google.generativeai as genai
 from dotenv import load_dotenv
 import db_utils
+from Constants import MODAL
 from datetime import date
 
 from schemas import HealthLog, WealthLog, LearningLog 
@@ -34,7 +35,7 @@ def classify_intent_node(state: DailyState):
     Or are they asking a question about past data (e.g., "How much did I spend?", "What did I learn?")?
     Respond with ONLY one word: "log" or "query".
     """
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    model = genai.GenerativeModel(MODAL)
     response = model.generate_content(prompt)
     intent = response.text.strip().lower()
     
@@ -46,7 +47,7 @@ def classify_intent_node(state: DailyState):
 
 def answer_query_node(state: DailyState):
     """Handles RAG by generating SQL or searching Vector DB."""
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    model = genai.GenerativeModel(MODAL)
     
     # 1. Decide which database to use
     router_prompt = f"""
@@ -81,21 +82,30 @@ def extract_data_node(state: DailyState):
     
     prompt = f"""
     You are an AI data extractor. Read the user's message: "{user_message}"
-    Extract the information into a strict JSON format with three keys: "health", "wealth", and "learning".
+    Extract the information into a strict JSON format with exactly three keys: "health", "wealth", and "learning".
     If a category is NOT mentioned, set its value to null.
     
-    For "health", try to extract these keys: "sleep_hours" (float), "workout_type" (string), "calories_consumed" (int), "notes" (string).
-    For "wealth", try to extract these keys: "transaction_type" (string: 'Income' or 'Expense'), "amount" (float), "currency" (string: default 'INR'), "category" (string), "merchant" (string), "notes" (string).
-    For "learning", try to extract these keys: "topic" (string), "duration_minutes" (int), "summary_text" (string), "url_reference" (string).
+    CRITICAL RULE: The value for each key MUST be a single dictionary object, NEVER a list or array. 
+    If the user mentions multiple expenses (e.g. hotel and food), add the amounts together and combine them into one single representative object.
+    
+    For "health": "sleep_hours" (float), "workout_type" (string), "calories_consumed" (int), "notes" (string).
+    For "wealth": "transaction_type" (string), "amount" (float), "currency" (string), "category" (string), "merchant" (string), "notes" (string).
+    For "learning": "topic" (string), "duration_minutes" (int), "summary_text" (string), "url_reference" (string).
     
     Return ONLY a valid JSON object.
     """
     
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash") # Ensure this matches your working model
     response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
     
     try:
         extracted_data = json.loads(response.text)
+        
+        # DEFENSIVE CATCH: If the AI ignores the rule and returns a list, grab the first item
+        for key in ["health", "wealth", "learning"]:
+            if isinstance(extracted_data.get(key), list):
+                extracted_data[key] = extracted_data[key][0] if len(extracted_data[key]) > 0 else None
+
         if extracted_data.get("health"): state["health"] = extracted_data["health"]
         if extracted_data.get("wealth"): state["wealth"] = extracted_data["wealth"]
         if extracted_data.get("learning"): state["learning"] = extracted_data["learning"]
@@ -112,28 +122,53 @@ def followup_node(state: DailyState):
     if not state.get("learning"): missing.append("Learning")
     
     prompt = f"The user logged data, but is missing logs for: {', '.join(missing)}. Ask a friendly, short follow-up question to get this missing info."
-    model = genai.GenerativeModel("gemini-3.6-flash")
+    model = genai.GenerativeModel(MODAL)
     return {"ai_response": model.generate_content(prompt).text}
 
 def save_and_confirm_node(state: DailyState):
-    """Saves ALL extracted data to the databases."""
+    """Saves ALL extracted data to the databases securely."""
     today = str(date.today())
     
+    # 1. Save Wealth
     if state.get("wealth"):
         w = state["wealth"]
-        db_utils.insert_wealth_log(today, w.get("transaction_type", "Expense"), w.get("amount", 0.0), w.get("currency", "INR"), w.get("category", "General"), w.get("merchant", "Unknown"), str(w.get("notes", "")))
+        # Using `or` ensures that if a value is explicitly `None` (null), we use the fallback
+        db_utils.insert_wealth_log(
+            today, 
+            w.get("transaction_type") or "Expense", 
+            w.get("amount") or 0.0, 
+            w.get("currency") or "INR", 
+            w.get("category") or "General", 
+            w.get("merchant") or "Unknown", 
+            str(w.get("notes") or "")
+        )
         
+    # 2. Save Health
     if state.get("health"):
         h = state["health"]
-        db_utils.insert_health_log(today, h.get("sleep_hours", 0.0), h.get("workout_type", "None"), h.get("calories_consumed", 0), str(h.get("notes", "")))
+        db_utils.insert_health_log(
+            today, 
+            h.get("sleep_hours") or 0.0, 
+            h.get("workout_type") or "None", 
+            h.get("calories_consumed") or 0, 
+            str(h.get("notes") or "")
+        )
         
+    # 3. Save Learning (Only if a topic actually exists!)
     if state.get("learning"):
         l = state["learning"]
-        db_utils.insert_learning_log(today, l.get("topic", "General"), l.get("duration_minutes", 0), l.get("url_reference", "None"))
-        db_utils.add_learning_vector(db_utils.init_chroma_db(), today, l.get("topic", "General"), str(l.get("summary_text", l.get("notes", "No summary"))), l.get("url_reference", "None"))
+        topic = l.get("topic")
+        
+        # We only interact with ChromaDB if the AI actually extracted a real topic
+        if topic: 
+            safe_topic = str(topic)
+            safe_summary = str(l.get("summary_text") or l.get("notes") or "No summary")
+            safe_url = str(l.get("url_reference") or "None")
+            
+            db_utils.insert_learning_log(today, safe_topic, l.get("duration_minutes") or 0, safe_url)
+            db_utils.add_learning_vector(db_utils.init_chroma_db(), today, safe_topic, safe_summary, safe_url)
 
-    return {"ai_response": "All 3 pillars logged! Saved to SQLite & ChromaDB! 🚀"}
-
+    return {"ai_response": "Data processed and successfully saved to SQLite & ChromaDB! 🚀"}
 # ==========================================
 # 3. DEFINE THE ROUTERS 
 # ==========================================
