@@ -4,6 +4,7 @@
 # Local Databases
 life_copilot.db
 chroma_data/
+backups/
 
 # Python Cache & Environments
 __pycache__/
