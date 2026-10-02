@@ -7,9 +7,11 @@ from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
-import graph
+from life_copilot import storage
+from life_copilot.agent import nodes, parsing
+from life_copilot.services import drafts
 from pydantic import ValidationError
-from schemas import DailyLogDraft
+from life_copilot.models import DailyLogDraft
 
 
 class FakeResponse:
@@ -38,25 +40,25 @@ class DraftWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.db_path = Path(self.temp_dir.name) / "drafts.db"
-        graph.db_utils.init_sqlite_db(self.db_path)
+        storage.init_sqlite_db(self.db_path)
 
     def tearDown(self):
         self.temp_dir.cleanup()
 
     def test_date_parser_supports_today_yesterday_and_iso_date(self):
         today = date(2026, 10, 2)
-        self.assertEqual(graph.resolve_entry_date("log this today", today), today)
+        self.assertEqual(parsing.resolve_entry_date("log this today", today), today)
         self.assertEqual(
-            graph.resolve_entry_date("this happened yesterday", today),
+            parsing.resolve_entry_date("this happened yesterday", today),
             date(2026, 10, 1),
         )
         self.assertEqual(
-            graph.resolve_entry_date("log this for 2026-09-25", today),
+            parsing.resolve_entry_date("log this for 2026-09-25", today),
             date(2026, 9, 25),
         )
 
     def test_two_expenses_remain_two_validated_draft_rows(self):
-        draft = graph.parse_extraction_payload(
+        draft = parsing.parse_extraction_payload(
             {
                 "health": None,
                 "wealth": [
@@ -91,7 +93,7 @@ class DraftWorkflowTests(unittest.TestCase):
         self.assertEqual(draft.wealth[0].transaction_type, "Expense")
 
     def test_missing_numeric_values_stay_none(self):
-        draft = graph.parse_extraction_payload(
+        draft = parsing.parse_extraction_payload(
             {
                 "health": {
                     "sleep_hours": None,
@@ -114,7 +116,7 @@ class DraftWorkflowTests(unittest.TestCase):
 
     def test_invalid_domain_values_return_clear_validation_errors(self):
         with self.assertRaises(ValidationError) as context:
-            graph.parse_extraction_payload(
+            parsing.parse_extraction_payload(
                 {
                     "health": None,
                     "wealth": [
@@ -152,9 +154,9 @@ class DraftWorkflowTests(unittest.TestCase):
             "ambiguities": [],
         }
         with patch.object(
-            graph.genai, "GenerativeModel", return_value=FakeModel(payload)
+            nodes.genai, "GenerativeModel", return_value=FakeModel(payload)
         ):
-            result = graph.extract_data_node(
+            result = nodes.extract_data_node(
                 {"user_message": "Spent 120 on food", "source": "text"}
             )
 
@@ -187,7 +189,7 @@ class DraftWorkflowTests(unittest.TestCase):
             }
         )
 
-        result = graph.save_confirmed_draft(draft, db_path=self.db_path)
+        result = drafts.save_confirmed_draft(draft, db_path=self.db_path)
 
         self.assertEqual(result["wealth"], 2)
         with closing(sqlite3.connect(self.db_path)) as conn:
@@ -216,7 +218,7 @@ class DraftWorkflowTests(unittest.TestCase):
             "wealth": [],
             "learning": [],
         }
-        health_result = graph.save_confirmed_draft(
+        health_result = drafts.save_confirmed_draft(
             health_draft, db_path=self.db_path
         )
         self.assertEqual(
@@ -244,7 +246,7 @@ class DraftWorkflowTests(unittest.TestCase):
             ],
             "learning": [],
         }
-        wealth_result = graph.save_confirmed_draft(
+        wealth_result = drafts.save_confirmed_draft(
             wealth_draft, db_path=self.db_path
         )
         self.assertTrue(wealth_result["daily_status"]["health_complete"])
@@ -265,7 +267,7 @@ class DraftWorkflowTests(unittest.TestCase):
             ],
         }
         collection = FakeVectorCollection()
-        learning_result = graph.save_confirmed_draft(
+        learning_result = drafts.save_confirmed_draft(
             learning_draft,
             db_path=self.db_path,
             vector_collection=collection,

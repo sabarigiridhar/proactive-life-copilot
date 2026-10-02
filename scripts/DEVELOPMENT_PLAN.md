@@ -14,14 +14,17 @@ The finished product should let one user quickly record an event, correct it bef
 
 The repository already contains:
 
-- `app.py`: Streamlit chat UI with text, image, and voice input.
-- `graph.py`: LangGraph intent routing, extraction, querying, follow-up, and saving.
-- `db_utils.py`: SQLite persistence and ChromaDB retrieval.
-- `schemas.py`: Pydantic models for health, wealth, and learning data.
+- `app.py`: thin Streamlit launch entry point.
+- `life_copilot/agent/`: LangGraph state, memory, routing, extraction, and workflow assembly.
+- `life_copilot/storage/`: SQLite repositories, migrations, retrieval, and ChromaDB synchronization.
+- `life_copilot/services/`: validated draft and saved-record operations.
+- `life_copilot/ui/`: Streamlit orchestration and focused UI components.
+- Root modules such as `graph.py` and `db_utils.py`: compatibility imports only.
+- `life_copilot/models.py`: Pydantic models for health, wealth, and learning data.
 - `life_copilot.db`: local structured storage.
 - `chroma_data/`: local vector storage for learning summaries.
 
-Current capabilities include multimodal logging and basic questions over saved data. The largest gaps are reliable daily state, editing/validation, multi-turn memory, safe retrieval, tests, dashboards, and separation between backend and frontend.
+Current capabilities include multimodal logging, validated confirmation and maintenance, daily state, conversation memory, and safe typed wealth/health analytics. The largest gaps are accurate learning retrieval, cross-domain evidence, dashboards, and separation between backend and frontend.
 
 ## 3. Key Product Decisions
 
@@ -378,7 +381,8 @@ Complete one vertical slice at a time:
 Keep AI-assisted coding requests narrow. Example:
 
 ```text
-Implement health upsert by entry_date. First inspect schemas.py and db_utils.py.
+Implement health upsert by entry_date. First inspect life_copilot/models.py and
+life_copilot/storage/domain_logs.py.
 Add a migration with a unique date constraint, preserve existing data, add repository
 tests using a temporary database, and do not change the UI. Show the tests run.
 ```

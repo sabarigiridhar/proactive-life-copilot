@@ -146,25 +146,28 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P2: Memory and Trustworthy Retrieval
 
-**Epic state:** `Not Started`  
+**Epic state:** `In Progress`
+
 **Goal:** Support multi-turn context and answer analytical questions only from retrieved evidence.
 
 ## P2-F1: Conversation Memory
 
+**Feature state:** `Done`
+
 ### P2-US1: Continue a conversation using prior context
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P2-T01 | Define `chat_threads` and `chat_messages` tables. | Not Started | P1-US1 | |
-| [ ] | P2-T02 | Add a LangGraph checkpointer keyed by `thread_id`. | Not Started | P2-T01 | |
-| [ ] | P2-T03 | Implement a bounded recent-message window. | Not Started | P2-T02 | |
-| [ ] | P2-T04 | Add conversation summarization for older messages. | Not Started | P2-T03 | |
-| [ ] | P2-T05 | Track the last confirmed entities in graph state. | Not Started | P2-T02 | |
-| [ ] | P2-T06 | Resolve references such as "that" and "it." | Not Started | P2-T05 | |
-| [ ] | P2-T07 | Ask for clarification when multiple prior entities match. | Not Started | P2-T06 | |
-| [ ] | P2-T08 | Test memory isolation between thread IDs. | Not Started | P2-T02-P2-T07 | |
+| [x] | P2-T01 | Define `chat_threads` and `chat_messages` tables. | Done | P1-US1 | Added in schema version 4. |
+| [x] | P2-T02 | Add a LangGraph checkpointer keyed by `thread_id`. | Done | P2-T01 | Uses `MemorySaver` with explicit thread configuration. |
+| [x] | P2-T03 | Implement a bounded recent-message window. | Done | P2-T02 | Prompts receive the latest eight messages. |
+| [x] | P2-T04 | Add conversation summarization for older messages. | Done | P2-T03 | Rolling summary and message cursor are persisted. |
+| [x] | P2-T05 | Track the last confirmed entities in graph state. | Done | P2-T02 | Exact domain and SQLite IDs are retained. |
+| [x] | P2-T06 | Resolve references such as "that" and "it." | Done | P2-T05 | Amount follow-ups create reviewable update drafts. |
+| [x] | P2-T07 | Ask for clarification when multiple prior entities match. | Done | P2-T06 | Selection supports ID, ordinal, merchant, and category. |
+| [x] | P2-T08 | Test memory isolation between thread IDs. | Done | P2-T02-P2-T07 | Repository and graph isolation tests added. |
 
 **Acceptance criteria:**
 
@@ -174,19 +177,21 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ## P2-F2: Safe Retrieval and Analytics
 
+**Feature state:** `Done`
+
 ### P2-US2: Answer structured questions safely
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P2-T09 | Define typed analytics requests and result models. | Not Started | P1 | |
-| [ ] | P2-T10 | Implement date-range and total calculations. | Not Started | P2-T09 | |
-| [ ] | P2-T11 | Implement category breakdown and trend calculations. | Not Started | P2-T09 | |
-| [ ] | P2-T12 | Implement health averages, workout frequency, and streaks. | Not Started | P2-T09 | |
-| [ ] | P2-T13 | Route common questions to allowlisted analytics functions. | Not Started | P2-T10-P2-T12 | |
-| [ ] | P2-T14 | If free-form SQL remains, add parser validation, table allowlists, limits, and timeout. | Not Started | P2-T13 | Prefer typed functions. |
-| [ ] | P2-T15 | Add tests for invalid, destructive, and oversized queries. | Not Started | P2-T13-P2-T14 | |
+| [x] | P2-T09 | Define typed analytics requests and result models. | Done | P1 | Pydantic forbids unknown operations and fields. |
+| [x] | P2-T10 | Implement date-range and total calculations. | Done | P2-T09 | Supports bounded ranges, income/expense type, and category filters. |
+| [x] | P2-T11 | Implement category breakdown and trend calculations. | Done | P2-T09 | Uses fixed parameterized aggregation queries. |
+| [x] | P2-T12 | Implement health averages, workout frequency, and streaks. | Done | P2-T09 | Current and longest workout streaks are deterministic. |
+| [x] | P2-T13 | Route common questions to allowlisted analytics functions. | Done | P2-T10-P2-T12 | Common phrasing routes locally; model fallback returns validated JSON only. |
+| [x] | P2-T14 | If free-form SQL remains, add parser validation, table allowlists, limits, and timeout. | Done | P2-T13 | Free-form SQL was removed from the graph and the legacy helper rejects every query. |
+| [x] | P2-T15 | Add tests for invalid, destructive, and oversized queries. | Done | P2-T13-P2-T14 | Covers malicious operations, excessive ranges, and excessive limits. |
 
 ### P2-US3: Search learning records accurately
 
@@ -597,7 +602,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| - | No active tracked work | - | Not Started | - | Select the first P1 story. |
+| - | No active tracked work | - | Not Started | - | Select the next P2 story. |
 
 ## Blockers and Decisions
 
@@ -611,6 +616,9 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-02 | P2-US2, P2-T09-P2-T15 | Replaced model-generated SQL with typed allowlisted analytics for wealth and health, deterministic grounded answers, bounded inputs, and destructive-query regression tests. | Codex |
+| 2026-10-02 | Q-T03, Q-T05 | Reorganized the application into agent, storage, service, and UI packages; retained small root compatibility imports and updated tests and contributor documentation. | Codex |
+| 2026-10-02 | P2-US1, P2-T01-P2-T08 | Added durable chat history, bounded rolling summaries, thread-scoped LangGraph memory, confirmed-entity references, and clarification-safe update drafts. | Codex |
 | 2026-10-02 | P1-US4, P1-T23-P1-T27 | Added validated record maintenance, explicit deletion confirmation, status recalculation, and learning-vector synchronization. | Codex |
 | 2026-10-02 | P1-US3, P1-T18-P1-T22 | Added persistent daily completion, partial/resumed check-ins, status indicators, and missing-domain follow-ups. | Codex |
 | 2026-10-02 | P1-T15 | Simplified draft review to Confirm and Cancel; inline edits are saved directly on confirmation. | Codex |

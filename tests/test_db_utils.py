@@ -5,7 +5,8 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-import db_utils
+from life_copilot import storage as db_utils
+from life_copilot.storage import vectors
 
 
 class FakeCollection:
@@ -176,7 +177,7 @@ class DatabaseUtilityTests(unittest.TestCase):
             for topic in ("RAG", "LangGraph")
         ]
         client = FakeChromaClient()
-        with patch.object(db_utils, "_persistent_chroma_client", return_value=client):
+        with patch.object(vectors, "_persistent_chroma_client", return_value=client):
             count = db_utils.rebuild_learning_vectors(
                 self.db_path, Path(self.temp_dir.name) / "chroma"
             )

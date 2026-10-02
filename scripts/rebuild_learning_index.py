@@ -11,7 +11,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import db_utils  # noqa: E402
+from life_copilot import storage  # noqa: E402
 
 
 def main() -> None:
@@ -34,7 +34,7 @@ def main() -> None:
     if args.chroma.exists():
         shutil.copytree(args.chroma, backup / args.chroma.name)
 
-    count = db_utils.rebuild_learning_vectors(args.database, args.chroma)
+    count = storage.rebuild_learning_vectors(args.database, args.chroma)
     print(f"Backup: {backup}")
     print(f"Rebuilt learning vectors: {count}")
 

@@ -2,10 +2,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import db_utils
+from life_copilot import storage as db_utils
 from pydantic import ValidationError
 
-from record_service import delete_saved_record, update_saved_record
+from life_copilot.services.records import delete_saved_record, update_saved_record
 
 
 class FakeVectorCollection:

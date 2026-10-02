@@ -2,66 +2,41 @@
 
 ## Project Structure & Module Organization
 
-- `app.py` contains the Streamlit UI, audio/image extraction flow, and chat session state.
-- `graph.py` defines the LangGraph workflow for intent classification, extraction, retrieval, saving, and follow-up responses.
-- `db_utils.py` owns SQLite table setup, inserts, SELECT-only querying, and ChromaDB vector storage.
-- `schemas.py` defines Pydantic models for structured daily logs.
-- `Constants.py` stores shared model configuration.
-- `life_copilot.db` and `chroma_data/` are local runtime data stores. Avoid committing generated or private data.
+Application code lives under `life_copilot/`:
 
-There is no dedicated `tests/` directory yet; add one with automated tests.
+- `agent/` contains LangGraph state, memory, parsing, reference resolution, AI nodes, and workflow assembly.
+- `analytics/` contains typed requests, natural-language routing, execution, and grounded answer formatting.
+- `storage/` contains SQLite migrations and separate repositories for domain logs, daily status, conversations, retrieval, and ChromaDB vectors.
+- `services/` coordinates validated record and draft persistence.
+- `ui/` contains the Streamlit screen, session helpers, draft review, and record-maintenance components.
+- `models.py` defines Pydantic domain and draft models; `config.py` holds shared configuration.
+
+Root modules such as `graph.py`, `db_utils.py`, and `schemas.py` are compatibility imports. Add new logic to `life_copilot/`, not to these wrappers. Tests live in `tests/`; operational commands and planning documents live in `scripts/`.
 
 ## Build, Test, and Development Commands
 
-Create and activate a virtual environment before installing dependencies:
+Create an environment and install the current dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install the packages used by the app:
-
-```powershell
 pip install streamlit pillow groq google-generativeai langgraph python-dotenv chromadb pydantic
 ```
 
-Initialize local databases:
-
-```powershell
-python db_utils.py
-```
-
-Run the app locally:
-
-```powershell
-streamlit run app.py
-```
-
-There is no formal test command yet. Use focused manual checks through the Streamlit UI and add automated tests for new business logic.
+Run the complete test suite with `python -m unittest discover -s tests -v`. Run the UI with `python -m streamlit run app.py`. Apply guarded database migrations with `python scripts/migrate_database.py`; this command creates a backup first.
 
 ## Coding Style & Naming Conventions
 
-Use Python 3 with 4-space indentation. Keep module names lowercase unless preserving existing files such as `Constants.py`. Use `snake_case` for functions and variables, `PascalCase` for Pydantic models, and LangGraph node names ending in `_node`.
-
-Keep database access inside `db_utils.py`, workflow behavior inside `graph.py`, and UI behavior inside `app.py`. Prefer typed models or dictionaries matching `schemas.py` over loosely shaped payloads.
+Use Python 3, four-space indentation, type hints, and `snake_case` functions. Use `PascalCase` for Pydantic models and suffix graph functions with `_node`. Keep Streamlit calls in `ui/`, SQL in `storage/`, and cross-repository workflows in `services/`. Prefer imports from `life_copilot.*` over compatibility modules.
 
 ## Testing Guidelines
 
-When adding tests, place them under `tests/` and name files `test_<module>.py`. Prefer unit tests for pure extraction/routing helpers and database tests against temporary SQLite or Chroma paths, not the checked-in local data files.
-
-Recommended future command:
-
-```powershell
-pytest
-```
+Name tests `test_<area>.py` and use `unittest`. Database tests must use temporary SQLite paths and fake vector collections. Mock Gemini, Groq, and Chroma boundaries; tests must never access the personal production database. Add a regression test for every fixed bug.
 
 ## Commit & Pull Request Guidelines
 
-Recent commits use short, imperative summaries, for example `Add Voice and image Extraction`. Keep messages concise and focused on the user-visible change.
+Use short imperative commit subjects, such as `Refactor conversation workflow`. Pull requests should describe behavior changes, schema impact, test commands, and manual UI checks. Include screenshots for visible UI changes and identify any new environment variables.
 
-Pull requests should include a brief description, manual test steps, database/schema impact, and screenshots or short screen recordings for UI changes. Link related issues and note required environment variables.
+## Security & Configuration
 
-## Security & Configuration Tips
-
-Store secrets in `.env`, including `GROQ_API_KEY` and `GEMINI_API_KEY`; never hard-code or commit API keys. Treat `life_copilot.db`, `chroma_data/`, uploaded media, and temporary audio files as private user data. Keep generated files and caches out of commits unless they are intentionally shared fixtures.
+Keep API keys in `.env`. Treat `life_copilot.db`, `chroma_data/`, backups, prompts, and uploads as private data. Never include their contents in tests, logs, commits, or screenshots.

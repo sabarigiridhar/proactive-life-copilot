@@ -11,7 +11,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-import db_utils  # noqa: E402
+from life_copilot import storage  # noqa: E402
 
 
 def create_backup(db_path: Path, chroma_path: Path, backup_root: Path) -> Path:
@@ -40,13 +40,13 @@ def main() -> None:
     args = parser.parse_args()
 
     backup = create_backup(args.database, args.chroma, args.backup_dir)
-    applied = db_utils.init_sqlite_db(args.database)
-    recovered = db_utils.backfill_learning_summaries_from_chroma(
+    applied = storage.init_sqlite_db(args.database)
+    recovered = storage.backfill_learning_summaries_from_chroma(
         args.database, args.chroma
     )
     rebuilt = None
     if args.rebuild_vectors:
-        rebuilt = db_utils.rebuild_learning_vectors(args.database, args.chroma)
+        rebuilt = storage.rebuild_learning_vectors(args.database, args.chroma)
 
     print(f"Backup: {backup}")
     print(f"Applied migrations: {applied or 'none'}")

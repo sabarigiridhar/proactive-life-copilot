@@ -1,6 +1,6 @@
 # Life Copilot Data Model
 
-This document describes schema version 1, introduced by `P1-US1`.
+This document describes the current SQLite schema through version 4.
 
 ## Ownership Rules
 
@@ -40,9 +40,21 @@ Confirmed records are fetched through an allowlisted domain repository that neve
 
 Learning updates upsert `learning_<sqlite_id>` in ChromaDB and remove any matching legacy date/topic ID. Learning deletion removes the vector and SQLite row. If Chroma is unavailable, SQLite remains authoritative and the UI reports that vector synchronization needs attention. Deletion always requires a separate permanent-delete confirmation.
 
+## Conversation Memory
+
+`chat_threads` stores a stable thread ID, rolling summary, summary cursor, and timestamps. `chat_messages` stores ordered user and assistant messages plus optional JSON metadata. Confirmed-record metadata contains domain and SQLite IDs, allowing follow-up references to target exact records after a Streamlit rerun.
+
+LangGraph also uses an in-process checkpointer keyed by `thread_id`; thread IDs must be supplied on every invocation. Model prompts receive at most eight recent messages plus the rolling summary. Older messages are summarized once and the cursor prevents repeated processing. A reference such as "add 50 more to that" creates a validated update draft. If several recent records could match, the graph requests a record ID, merchant, category, or ordinal before creating the draft.
+
+## Safe Analytics
+
+Structured questions are converted to an `AnalyticsRequest` with an allowlisted operation, bounded date range, validated transaction type, optional category, and result limit. Supported operations are wealth totals, category breakdowns, daily trends, health averages, workout frequency, and workout streaks.
+
+Each operation executes fixed parameterized SQL from `life_copilot/storage/analytics.py`. The model may return validated routing JSON but never executable SQL. User-facing answers are formatted directly from `AnalyticsResult`, including the calculation period and matched-record count where relevant. Free-form SQL is disabled, and analytics requests cannot span more than 367 inclusive days or return more than 100 grouped rows.
+
 ## Migration Behavior
 
-`migrations.py` records applied versions in `schema_migrations`. Each migration runs in one SQLite transaction, and rerunning it does not alter an already migrated database.
+`life_copilot/storage/migrations.py` records applied versions in `schema_migrations`. Version 4 adds conversation memory. Each migration runs in one SQLite transaction, and rerunning it does not alter an already migrated database.
 
 Legacy wealth and learning rows retain their IDs and remain separate. Duplicate health rows are consolidated by date:
 
