@@ -23,7 +23,11 @@ def initialize_session() -> None:
             )
             messages = storage.get_chat_messages(st.session_state.thread_id)
         st.session_state.messages = [
-            {"role": message["role"], "content": message["content"]}
+            {
+                "role": message["role"],
+                "content": message["content"],
+                "metadata": message.get("metadata"),
+            }
             for message in messages
         ]
 
@@ -45,4 +49,6 @@ def append_message(role: str, content: str, metadata: dict | None = None) -> Non
     storage.add_chat_message(
         st.session_state.thread_id, role, content, metadata=metadata
     )
-    st.session_state.messages.append({"role": role, "content": content})
+    st.session_state.messages.append(
+        {"role": role, "content": content, "metadata": metadata}
+    )

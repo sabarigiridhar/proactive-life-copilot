@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from pathlib import Path
 
 from life_copilot.storage.base import (
@@ -34,6 +35,7 @@ def add_learning_vector(
             {
                 "sqlite_id": learning_id,
                 "date": entry_date,
+                "date_ordinal": date.fromisoformat(entry_date).toordinal(),
                 "topic": topic,
                 "url": url_reference or "None",
             }

@@ -4,9 +4,10 @@
 
 Application code lives under `life_copilot/`:
 
-- `agent/` contains LangGraph state, memory, parsing, reference resolution, AI nodes, and workflow assembly.
+- `agent/` contains LangGraph state, memory, parsing, provider retries, reference resolution, AI nodes, and workflow assembly.
 - `analytics/` contains typed requests, natural-language routing, execution, and grounded answer formatting.
-- `storage/` contains SQLite migrations and separate repositories for domain logs, daily status, conversations, retrieval, and ChromaDB vectors.
+- `retrieval/` contains typed learning search, SQLite-backed result hydration, fallback ranking, and retrieval evaluation.
+- `storage/` contains SQLite migrations and separate repositories for domain logs, daily status, conversations, analytics, cross-domain aggregation, retrieval, and ChromaDB vectors.
 - `services/` coordinates validated record and draft persistence.
 - `ui/` contains the Streamlit screen, session helpers, draft review, and record-maintenance components.
 - `models.py` defines Pydantic domain and draft models; `config.py` holds shared configuration.
@@ -20,10 +21,10 @@ Create an environment and install the current dependencies:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install streamlit pillow groq google-generativeai langgraph python-dotenv chromadb pydantic
+pip install -r requirements.txt
 ```
 
-Run the complete test suite with `python -m unittest discover -s tests -v`. Run the UI with `python -m streamlit run app.py`. Apply guarded database migrations with `python scripts/migrate_database.py`; this command creates a backup first.
+Run the complete test suite with `python -m unittest discover -s tests -v`. Run the UI with `python -m streamlit run app.py`. Measure semantic retrieval with `python scripts/evaluate_learning_retrieval.py`. Apply guarded database migrations with `python scripts/migrate_database.py`; this command creates a backup first.
 
 ## Coding Style & Naming Conventions
 
@@ -31,7 +32,7 @@ Use Python 3, four-space indentation, type hints, and `snake_case` functions. Us
 
 ## Testing Guidelines
 
-Name tests `test_<area>.py` and use `unittest`. Database tests must use temporary SQLite paths and fake vector collections. Mock Gemini, Groq, and Chroma boundaries; tests must never access the personal production database. Add a regression test for every fixed bug.
+Name tests `test_<area>.py` and use `unittest`. Database tests must use temporary SQLite paths and fake vector collections. Mock Gemini, Groq, and Chroma boundaries; tests must never access the personal production database. Add a regression test for every fixed bug. Route provider calls through `life_copilot.agent.provider`, and never expose raw provider errors.
 
 ## Commit & Pull Request Guidelines
 

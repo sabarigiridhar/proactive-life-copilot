@@ -1,7 +1,11 @@
 """Bounded conversation context and rolling summarization."""
 
 from life_copilot import storage as db_utils
-from life_copilot.agent.provider import genai
+from life_copilot.agent.provider import (
+    ProviderCallError,
+    ProviderOutputError,
+    generate_gemini_content,
+)
 from life_copilot.agent.state import DailyState, _state_db_path
 from life_copilot.config import MODAL
 
@@ -36,11 +40,22 @@ def _summarize_messages(previous_summary: str | None, messages: list[dict]) -> s
     Messages to add:
     {transcript}
     """
+
+    def validate_summary(text: str) -> str:
+        if len(text) > 4000:
+            raise ProviderOutputError("Conversation summary was too long.")
+        return text
+
     try:
-        summary = genai.GenerativeModel(MODAL).generate_content(prompt).text.strip()
+        summary = generate_gemini_content(
+            prompt,
+            model_name=MODAL,
+            validator=validate_summary,
+            operation="conversation_summarization",
+        )
         if summary:
             return summary
-    except Exception:
+    except ProviderCallError:
         pass
 
     combined = "\n".join(part for part in (previous_summary, transcript) if part)

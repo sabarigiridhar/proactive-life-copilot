@@ -1,0 +1,61 @@
+{
+  "records": [
+    {
+      "entry_date": "2026-09-22",
+      "topic": "LangGraph",
+      "summary_text": "LangGraph checkpoints preserve conversation state by thread ID.",
+      "duration_minutes": 45,
+      "url_reference": "https://example.com/langgraph"
+    },
+    {
+      "entry_date": "2026-09-24",
+      "topic": "SQLite",
+      "summary_text": "Parameterized SQL queries keep user values separate from executable SQL.",
+      "duration_minutes": 30,
+      "url_reference": null
+    },
+    {
+      "entry_date": "2026-10-01",
+      "topic": "RAG",
+      "summary_text": "Metadata filters narrow semantic search by topic and ISO date before ranking.",
+      "duration_minutes": 60,
+      "url_reference": "https://example.com/rag"
+    },
+    {
+      "entry_date": "2026-10-02",
+      "topic": "Python",
+      "summary_text": "Context managers close database connections even when an operation fails.",
+      "duration_minutes": 25,
+      "url_reference": null
+    }
+  ],
+  "cases": [
+    {
+      "name": "conversation-memory-concept",
+      "query": "How are separate chat conversations remembered?",
+      "expected_summary_contains": "checkpoints preserve conversation state",
+      "top_k": 2
+    },
+    {
+      "name": "safe-sql-concept",
+      "query": "How did I keep user input out of executable SQL?",
+      "expected_summary_contains": "Parameterized SQL queries",
+      "top_k": 2
+    },
+    {
+      "name": "topic-and-date-filter",
+      "query": "What did I study about filtering semantic search?",
+      "topic": "RAG",
+      "start_date": "2026-10-01",
+      "end_date": "2026-10-01",
+      "expected_summary_contains": "Metadata filters narrow semantic search",
+      "top_k": 1
+    },
+    {
+      "name": "resource-cleanup-concept",
+      "query": "What closes a database connection after failure?",
+      "expected_summary_contains": "Context managers close database connections",
+      "top_k": 2
+    }
+  ]
+}

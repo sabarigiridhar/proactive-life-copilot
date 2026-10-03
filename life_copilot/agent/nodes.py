@@ -1,36 +1,63 @@
 """AI-backed intent, retrieval, and extraction graph nodes."""
 
-import json
+from datetime import date
 
-from pydantic import ValidationError
-
-from life_copilot import storage as db_utils
 from life_copilot.agent.memory import _format_memory_context
 from life_copilot.agent.parsing import missing_draft_domains, parse_extraction_payload
-from life_copilot.agent.provider import genai
-from life_copilot.agent.state import DailyState, _state_db_path
+from life_copilot.agent.provider import (
+    ProviderCallError,
+    ProviderOutputError,
+    generate_gemini_content,
+)
+from life_copilot.agent.state import DailyState, _state_chroma_path, _state_db_path
 from life_copilot.analytics.router import route_analytics_request
-from life_copilot.analytics.service import answer_analytics_request, run_analytics
+from life_copilot.analytics.service import build_analytics_answer, run_analytics
 from life_copilot.config import MODAL
+from life_copilot.retrieval import (
+    answer_learning_search,
+    create_learning_search_request,
+    search_learning_records,
+)
 
 
 def _is_learning_query(message: str) -> bool:
     lowered = message.lower()
-    return any(
+    learning_query = any(
         term in lowered
         for term in ("learn", "learning", "studied", "study", "topic", "course")
     )
+    other_domain = any(
+        term in lowered
+        for term in (
+            "sleep",
+            "slept",
+            "calorie",
+            "workout",
+            "exercise",
+            "expense",
+            "spend",
+            "spent",
+            "income",
+        )
+    )
+    return learning_query and not other_domain
 
 
 def _answer_learning_query(state: DailyState) -> str:
-    """Preserve semantic learning search until P2-US3 hardens that path."""
+    """Return only SQLite-verified records ranked by semantic relevance."""
     question = state.get("user_message", "")
-    results = db_utils.search_learning_vectors(question)
-    prompt = (
-        f"Answer the question '{question}' using only these retrieved learning notes: "
-        f"{results}. If the notes do not answer it, say so."
+    db_path = _state_db_path(state)
+    request = create_learning_search_request(
+        question,
+        today=date.today(),
+        db_path=db_path,
     )
-    return genai.GenerativeModel(MODAL).generate_content(prompt).text
+    result = search_learning_records(
+        request,
+        db_path=db_path,
+        chroma_path=_state_chroma_path(state),
+    )
+    return answer_learning_search(result)
 
 def classify_intent_node(state: DailyState):
     """Determine whether the user wants to log data or query history."""
@@ -43,10 +70,25 @@ def classify_intent_node(state: DailyState):
     or asking a question about previously stored data?
     Respond with ONLY one word: "log" or "query".
     """
-    model = genai.GenerativeModel(MODAL)
-    intent = model.generate_content(prompt).text.strip().lower()
-    if intent not in {"log", "query"}:
-        intent = "log"
+    def validate_intent(text: str) -> str:
+        intent = text.strip().lower()
+        if intent not in {"log", "query"}:
+            raise ProviderOutputError("Intent output was outside the allowlist.")
+        return intent
+
+    try:
+        intent = generate_gemini_content(
+            prompt,
+            model_name=MODAL,
+            validator=validate_intent,
+            operation="intent_classification",
+        )
+    except ProviderCallError as exc:
+        return {
+            "intent": "error",
+            "draft": None,
+            "ai_response": str(exc),
+        }
     return {"intent": intent}
 
 def answer_query_node(state: DailyState):
@@ -59,12 +101,23 @@ def answer_query_node(state: DailyState):
             }
         request = route_analytics_request(state)
         result = run_analytics(request, db_path=_state_db_path(state))
-        answer = answer_analytics_request(result)
+        answer = build_analytics_answer(result)
+    except ProviderCallError as exc:
+        return {"ai_response": str(exc), "draft": None}
     except ValueError as exc:
-        answer = str(exc)
+        return {"ai_response": str(exc), "draft": None}
     except Exception:
-        answer = "I could not calculate that safely from the stored records."
-    return {"ai_response": answer, "draft": None}
+        return {
+            "ai_response": "I could not calculate that safely from the stored records.",
+            "draft": None,
+        }
+    return {
+        "ai_response": answer.text,
+        "draft": None,
+        "evidence": answer.evidence,
+        "date_range": answer.date_range.model_dump(mode="json"),
+        "confidence": answer.confidence,
+    }
 
 def extract_data_node(state: DailyState):
     """Extract a validated draft without writing to either database."""
@@ -100,16 +153,20 @@ def extract_data_node(state: DailyState):
     - Return valid JSON only.
     """
 
-    model = genai.GenerativeModel("gemini-3.1-flash-lite")
     try:
-        response = model.generate_content(
-            prompt, generation_config={"response_mime_type": "application/json"}
+        draft = generate_gemini_content(
+            prompt,
+            model_name=MODAL,
+            generation_config={"response_mime_type": "application/json"},
+            validator=lambda text: parse_extraction_payload(
+                text, user_message, source
+            ),
+            operation="daily_log_extraction",
         )
-        draft = parse_extraction_payload(response.text, user_message, source)
-    except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+    except ProviderCallError as exc:
         return {
             "draft": None,
-            "ai_response": f"I could not create a valid draft: {exc}",
+            "ai_response": str(exc),
         }
 
     count = (1 if draft.health else 0) + len(draft.wealth) + len(draft.learning)

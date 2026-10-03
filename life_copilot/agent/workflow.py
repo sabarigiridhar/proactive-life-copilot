@@ -49,6 +49,8 @@ def remember_confirmed_draft(
     return entities
 
 def route_intent(state: DailyState):
+    if state.get("intent") == "error":
+        return "error"
     return "answer_query" if state.get("intent") == "query" else "extract_data"
 
 def route_reference(state: DailyState):
@@ -70,7 +72,7 @@ workflow.add_conditional_edges(
 workflow.add_conditional_edges(
     "classify_intent",
     route_intent,
-    {"answer_query": "answer_query", "extract_data": "extract_data"},
+    {"answer_query": "answer_query", "extract_data": "extract_data", "error": END},
 )
 workflow.add_edge("answer_query", END)
 workflow.add_edge("extract_data", END)

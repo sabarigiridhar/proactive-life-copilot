@@ -1,0 +1,8 @@
+chromadb==1.5.9
+google-genai==2.28.0
+groq==1.7.0
+langgraph==1.2.12
+pillow==12.3.0
+pydantic==2.13.5
+python-dotenv==1.2.3
+streamlit==1.64.0

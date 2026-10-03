@@ -79,10 +79,13 @@ def _wealth_editor(record: dict, form_key: str) -> dict:
         )
         amount = st.number_input(
             "Amount",
-            min_value=0.01,
             value=float(record["amount"]),
+            step=0.01,
+            format="%.2f",
             key=f"{form_key}_amount",
         )
+        if amount <= 0:
+            st.warning("Enter an amount greater than zero before updating this record.")
         currency = st.text_input(
             "Currency", value=record["currency"], key=f"{form_key}_currency"
         )

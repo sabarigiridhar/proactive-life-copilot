@@ -2,6 +2,7 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -168,6 +169,10 @@ class DatabaseUtilityTests(unittest.TestCase):
         )
         self.assertIn("learning_42", collection.records)
         self.assertEqual(collection.records["learning_42"][1]["sqlite_id"], 42)
+        self.assertEqual(
+            collection.records["learning_42"][1]["date_ordinal"],
+            date(2026, 9, 27).toordinal(),
+        )
 
     def test_rebuild_uses_every_sqlite_learning_row(self):
         ids = [

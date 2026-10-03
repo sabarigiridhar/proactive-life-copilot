@@ -36,7 +36,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 | Phase | Epic | State | Depends on | Target result |
 | --- | --- | --- | --- | --- |
 | P1 | Reliable Capture and Daily Check-in | Done | None | Validated, editable multimodal logging |
-| P2 | Memory and Trustworthy Retrieval | Not Started | P1 | Multi-turn, evidence-based answers |
+| P2 | Memory and Trustworthy Retrieval | Done | P1 | Multi-turn, evidence-based answers |
 | P3 | FastAPI Backend | Not Started | P1, P2 | Stable API usable by any frontend |
 | P4 | Dashboard and Domain Pages | Not Started | P1, preferably P3 | Visible and editable personal data |
 | P5 | Next.js Frontend | Not Started | P3, P4 UX validated | Full-control production frontend |
@@ -47,7 +47,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P1: Reliable Capture and Daily Check-in
 
-**Epic state:** `Done`  
+**Epic state:** `Done`
 **Goal:** Ensure text, voice, and image inputs produce correct drafts that users can review before data is saved.
 
 ## P1-F1: Correct Daily Data Model
@@ -146,7 +146,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P2: Memory and Trustworthy Retrieval
 
-**Epic state:** `In Progress`
+**Epic state:** `Done`
 
 **Goal:** Support multi-turn context and answer analytical questions only from retrieved evidence.
 
@@ -195,43 +195,69 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P2-US3: Search learning records accurately
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P2-T16 | Add topic and date metadata filters to vector retrieval. | Not Started | P1-T06 | |
-| [ ] | P2-T17 | Combine semantic results with SQLite record details. | Not Started | P2-T16 | |
-| [ ] | P2-T18 | Handle an empty or unavailable vector index gracefully. | Not Started | P2-T16 | |
-| [ ] | P2-T19 | Create learning-retrieval evaluation examples. | Not Started | P2-T17 | |
-| [ ] | P2-T20 | Measure whether expected notes appear in top results. | Not Started | P2-T19 | |
+| [x] | P2-T16 | Add topic and date metadata filters to vector retrieval. | Done | P1-T06 | Exact topics, ISO dates, and numeric date ranges are filtered in Chroma. |
+| [x] | P2-T17 | Combine semantic results with SQLite record details. | Done | P2-T16 | Chroma ranks stable IDs; user-visible fields are hydrated from SQLite. |
+| [x] | P2-T18 | Handle an empty or unavailable vector index gracefully. | Done | P2-T16 | Bounded keyword-ranked SQLite fallback returns explicit status. |
+| [x] | P2-T19 | Create learning-retrieval evaluation examples. | Done | P2-T17 | Added a self-contained four-record, four-query fixture. |
+| [x] | P2-T20 | Measure whether expected notes appear in top results. | Done | P2-T19 | Repeatable evaluator reports top-k hit rate; baseline is 4/4 (100%). |
+
+**Acceptance criteria:**
+
+- Topic and date-constrained questions search only matching vector metadata.
+- Returned summaries and links always come from the matching SQLite row.
+- Empty, stale, or unavailable vector indexes do not crash the conversation.
+- `python scripts/evaluate_learning_retrieval.py` reports the top-k hit rate and fails below its configured threshold.
 
 ### P2-US4: Answer cross-domain questions with evidence
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P2-T21 | Create daily aggregate models for all domains. | Not Started | P2-US2 | |
-| [ ] | P2-T22 | Join daily aggregates by date in Python or controlled SQL. | Not Started | P2-T21 | |
-| [ ] | P2-T23 | Implement threshold and comparison questions. | Not Started | P2-T22 | Example: sleep versus food spending. |
-| [ ] | P2-T24 | Return `text`, `evidence`, `date_range`, and `confidence`. | Not Started | P2-T23 | |
-| [ ] | P2-T25 | Require a minimum sample size for correlation-style observations. | Not Started | P2-T23 | |
-| [ ] | P2-T26 | Add regression tests for numeric grounding. | Not Started | P2-T24-P2-T25 | |
+| [x] | P2-T21 | Create daily aggregate models for all domains. | Done | P2-US2 | Typed health, wealth, and learning aggregates added. |
+| [x] | P2-T22 | Join daily aggregates by date in Python or controlled SQL. | Done | P2-T21 | Fixed parameterized queries are joined by ISO date in Python. |
+| [x] | P2-T23 | Implement threshold and comparison questions. | Done | P2-T22 | Supports cross-domain metric averages above and below validated thresholds. |
+| [x] | P2-T24 | Return `text`, `evidence`, `date_range`, and `confidence`. | Done | P2-T23 | Graph state and persisted chat metadata carry the complete answer contract. |
+| [x] | P2-T25 | Require a minimum sample size for correlation-style observations. | Done | P2-T23 | Requires at least three aligned dates in each group and avoids causal claims. |
+| [x] | P2-T26 | Add regression tests for numeric grounding. | Done | P2-T24-P2-T25 | Covers routing, all-domain joins, filters, evidence, confidence, and sparse data. |
+
+**Acceptance criteria:**
+
+- Health, wealth, and learning values are aggregated independently and joined only by date.
+- Category and currency filters prevent unrelated spending from affecting comparisons.
+- Every numerical answer exposes the exact daily evidence rows, date range, and confidence.
+- Fewer than three dates in either group returns an insufficient-data answer without a directional claim.
+- Cross-domain wording remains observational and never claims causation.
 
 ## P2-F3: Provider Reliability and Guardrails
 
+**Feature state:** `Done`
+
 ### P2-US5: Recover cleanly from AI provider failures
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P2-T27 | Classify retryable and permanent provider errors. | Not Started | None | |
-| [ ] | P2-T28 | Add exponential backoff with jitter and retry limits. | Not Started | P2-T27 | |
-| [ ] | P2-T29 | Validate all model output before using it. | Not Started | P1-T09 | |
-| [ ] | P2-T30 | Add grounded-answer verification for numerical claims. | Not Started | P2-T24 | |
-| [ ] | P2-T31 | Add user-safe fallback messages. | Not Started | P2-T27 | |
-| [ ] | P2-T32 | Test rate limits, timeouts, malformed JSON, and empty output. | Not Started | P2-T28-P2-T31 | |
+| [x] | P2-T27 | Classify retryable and permanent provider errors. | Done | None | HTTP, timeout, connection, server, authentication, request, output, and unknown failures are classified. |
+| [x] | P2-T28 | Add exponential backoff with jitter and retry limits. | Done | P2-T27 | Side-effect-free provider calls use at most three attempts with capped backoff and jitter. |
+| [x] | P2-T29 | Validate all model output before using it. | Done | P1-T09 | Intent, extraction, routing, summaries, vision text, and transcripts have bounded output contracts. |
+| [x] | P2-T30 | Add grounded-answer verification for numerical claims. | Done | P2-T24 | Answer formatting independently checks calculated values and record counts against evidence. |
+| [x] | P2-T31 | Add user-safe fallback messages. | Done | P2-T27 | UI and graph boundaries hide provider details and state that failed requests were not saved. |
+| [x] | P2-T32 | Test rate limits, timeouts, malformed JSON, and empty output. | Done | P2-T28-P2-T31 | Provider and graph tests cover retries, safe failures, validation recovery, and evidence tampering. |
+
+**Acceptance criteria:**
+
+- Retryable failures use no more than three attempts and never repeat a database write.
+- Authentication and invalid-request failures stop immediately with no retry.
+- Empty, malformed, or out-of-contract model responses are rejected before use.
+- Provider exceptions, prompts, API keys, and personal values are not shown to users.
+- Failed logging requests return no draft and save no records.
+- Numerical answers are rendered only after their values match the attached evidence.
 
 **Phase P2 exit criteria:** Multi-turn tests pass, all numerical responses expose evidence, unsafe queries are rejected, and provider failures do not corrupt state.
 
@@ -616,6 +642,10 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-03 | P2-US5 | Migrated Gemini integration from deprecated `google-generativeai` to `google-genai`, added client-contract tests, and pinned direct dependencies. | Codex |
+| 2026-10-03 | P2-US5, P2-T27-P2-T32 | Added classified provider failures, bounded exponential retries, model-output validation, safe fallbacks, evidence verification, and failure-path regression tests. | Codex |
+| 2026-10-03 | P2-US4, P2-T21-P2-T26 | Added typed daily aggregates, date-aligned threshold comparisons, persisted evidence contracts, sample-size guardrails, and numeric-grounding regression tests. | Codex |
+| 2026-10-02 | P2-US3, P2-T16-P2-T20 | Added filtered semantic learning search, SQLite result hydration, keyword fallback, and a repeatable top-k retrieval evaluation scoring 4/4. | Codex |
 | 2026-10-02 | P2-US2, P2-T09-P2-T15 | Replaced model-generated SQL with typed allowlisted analytics for wealth and health, deterministic grounded answers, bounded inputs, and destructive-query regression tests. | Codex |
 | 2026-10-02 | Q-T03, Q-T05 | Reorganized the application into agent, storage, service, and UI packages; retained small root compatibility imports and updated tests and contributor documentation. | Codex |
 | 2026-10-02 | P2-US1, P2-T01-P2-T08 | Added durable chat history, bounded rolling summaries, thread-scoped LangGraph memory, confirmed-entity references, and clarification-safe update drafts. | Codex |

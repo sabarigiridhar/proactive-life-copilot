@@ -9,6 +9,7 @@ from life_copilot.analytics.models import (
     AnalyticsResult,
 )
 from life_copilot.storage.base import DEFAULT_DB_PATH, _database
+from life_copilot.storage.cross_domain import execute_cross_domain
 
 
 def _wealth_filters(request: AnalyticsRequest) -> tuple[str, list]:
@@ -182,5 +183,6 @@ def execute_analytics(
         AnalyticsOperation.HEALTH_AVERAGES: _health_averages,
         AnalyticsOperation.WORKOUT_FREQUENCY: _workout_frequency,
         AnalyticsOperation.WORKOUT_STREAK: _workout_streak,
+        AnalyticsOperation.CROSS_DOMAIN_COMPARISON: execute_cross_domain,
     }
     return operations[request.operation](request, db_path)

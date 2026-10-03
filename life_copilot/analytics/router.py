@@ -7,9 +7,15 @@ from datetime import date, timedelta
 from pydantic import ValidationError
 
 from life_copilot.agent.memory import _format_memory_context
-from life_copilot.agent.provider import genai
+from life_copilot.agent.provider import generate_gemini_content
 from life_copilot.agent.state import DailyState
-from life_copilot.analytics.models import AnalyticsOperation, AnalyticsRequest
+from life_copilot.analytics.models import (
+    AnalyticsOperation,
+    AnalyticsRequest,
+    ComparisonOperator,
+    DailyMetric,
+    METRIC_DOMAINS,
+)
 from life_copilot.config import MODAL
 
 
@@ -43,12 +49,184 @@ def _date_range(message: str, today: date) -> tuple[date, date]:
     return today, today
 
 
+_COMPARATOR_PATTERN = (
+    r"more than|over|above|exceeded|exceeds|at least|"
+    r"less than|under|below|at most"
+)
+
+
+def _comparison_operator(value: str) -> ComparisonOperator:
+    normalized = value.casefold()
+    if normalized in {"more than", "over", "above", "exceeded", "exceeds"}:
+        return ComparisonOperator.GT
+    if normalized == "at least":
+        return ComparisonOperator.GTE
+    if normalized in {"less than", "under", "below"}:
+        return ComparisonOperator.LT
+    return ComparisonOperator.LTE
+
+
+def _number(value: str) -> float:
+    return float(value.replace(",", ""))
+
+
+def _threshold_condition(
+    message: str,
+) -> tuple[DailyMetric, ComparisonOperator, float] | None:
+    patterns = (
+        (
+            DailyMetric.EXPENSE_AMOUNT,
+            rf"\b(?:spend|spent|spending|expense|expenses)\b.{{0,35}}?"
+            rf"(?P<comparison>{_COMPARATOR_PATTERN})\s*"
+            r"(?:inr|rs\.?|rupees?|usd|dollars?|eur|euros?)?\s*"
+            r"(?P<value>\d[\d,]*(?:\.\d+)?)",
+        ),
+        (
+            DailyMetric.SLEEP_HOURS,
+            rf"\b(?:sleep|slept|sleeping)\b.{{0,20}}?"
+            rf"(?P<comparison>{_COMPARATOR_PATTERN})\s*"
+            r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*(?:hours?|hrs?)?",
+        ),
+        (
+            DailyMetric.LEARNING_MINUTES,
+            rf"\b(?:learn|learned|learning|study|studied|studying)\b.{{0,25}}?"
+            rf"(?P<comparison>{_COMPARATOR_PATTERN})\s*"
+            r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*"
+            r"(?P<unit>hours?|hrs?|minutes?|mins?)?",
+        ),
+        (
+            DailyMetric.CALORIES_CONSUMED,
+            rf"\b(?:calories?|consume|consumed|eating|ate)\b.{{0,25}}?"
+            rf"(?P<comparison>{_COMPARATOR_PATTERN})\s*"
+            r"(?P<value>\d[\d,]*(?:\.\d+)?)\s*(?:calories?)?",
+        ),
+    )
+    for metric, pattern in patterns:
+        match = re.search(pattern, message, re.IGNORECASE)
+        if not match:
+            continue
+        threshold = _number(match.group("value"))
+        if metric == DailyMetric.LEARNING_MINUTES:
+            unit = match.groupdict().get("unit") or "minutes"
+            if unit.casefold().startswith(("hour", "hr")):
+                threshold *= 60
+        return metric, _comparison_operator(match.group("comparison")), threshold
+
+    if re.search(r"\b(?:on\s+)?(?:workout|exercise)\s+days?\b", message, re.IGNORECASE):
+        return DailyMetric.WORKOUT_LOGGED, ComparisonOperator.GTE, 1.0
+    return None
+
+
+def _mentioned_metrics(message: str) -> list[DailyMetric]:
+    patterns = (
+        (DailyMetric.SLEEP_HOURS, r"\b(?:sleep|slept|sleeping)\b"),
+        (DailyMetric.CALORIES_CONSUMED, r"\bcalories?\b"),
+        (DailyMetric.EXPENSE_AMOUNT, r"\b(?:spend|spent|spending|expense|expenses)\b"),
+        (
+            DailyMetric.LEARNING_MINUTES,
+            r"\b(?:learn|learned|learning|study|studied|studying)\b",
+        ),
+        (DailyMetric.WORKOUT_LOGGED, r"\b(?:workout|exercise)\b"),
+    )
+    return [
+        metric
+        for metric, pattern in patterns
+        if re.search(pattern, message, re.IGNORECASE)
+    ]
+
+
+def _cross_category(message: str) -> str | None:
+    amount_then_category = re.search(
+        r"\d[\d,]*(?:\.\d+)?\s*"
+        r"(?:rupees?|inr|rs\.?|dollars?|usd|euros?|eur)?\s*"
+        r"(?:on|for)\s+(?P<category>[a-z][a-z &-]*?)"
+        r"(?=\s+(?:today|yesterday|this|last|from|between)|[?.!,]|$)",
+        message,
+        re.IGNORECASE,
+    )
+    if amount_then_category:
+        return amount_then_category.group("category").strip().title()
+    category_then_spending = re.search(
+        r"\b(?P<category>[a-z][a-z-]*)\s+(?:spending|expenses?)\b",
+        message,
+        re.IGNORECASE,
+    )
+    if category_then_spending:
+        candidate = category_then_spending.group("category").strip().title()
+        if candidate.casefold() not in {"my", "total", "daily"}:
+            return candidate
+    return None
+
+
+def _currency(message: str) -> str:
+    lowered = message.casefold()
+    if any(value in lowered for value in ("usd", "dollar", "$")):
+        return "USD"
+    if any(value in lowered for value in ("eur", "euro")):
+        return "EUR"
+    return "INR"
+
+
+def parse_cross_domain_question(
+    message: str, *, today: date | None = None
+) -> AnalyticsRequest | None:
+    """Parse common threshold comparisons without asking a model to calculate."""
+    condition = _threshold_condition(message)
+    if condition is None:
+        return None
+    condition_metric, operator, threshold = condition
+    outcome_metric = next(
+        (
+            metric
+            for metric in _mentioned_metrics(message)
+            if METRIC_DOMAINS[metric] != METRIC_DOMAINS[condition_metric]
+        ),
+        None,
+    )
+    if outcome_metric is None:
+        return None
+
+    current_day = today or date.today()
+    has_date_scope = bool(
+        re.search(
+            r"\b(?:today|yesterday|this week|this month|last week|last month|"
+            r"last \d+ days?|from|between|since|\d{4}-\d{2}-\d{2})\b",
+            message,
+            re.IGNORECASE,
+        )
+    )
+    start_date, end_date = (
+        _date_range(message, current_day)
+        if has_date_scope
+        else (current_day - timedelta(days=29), current_day)
+    )
+    return AnalyticsRequest(
+        operation=AnalyticsOperation.CROSS_DOMAIN_COMPARISON,
+        start_date=start_date,
+        end_date=end_date,
+        outcome_metric=outcome_metric,
+        condition_metric=condition_metric,
+        comparison_operator=operator,
+        threshold=threshold,
+        category=(
+            _cross_category(message)
+            if DailyMetric.EXPENSE_AMOUNT in {outcome_metric, condition_metric}
+            else None
+        ),
+        currency=_currency(message),
+    )
+
+
 def parse_common_question(
     message: str, *, today: date | None = None
 ) -> AnalyticsRequest | None:
     """Route common questions without requiring a model call."""
     lowered = message.lower()
     start_date, end_date = _date_range(message, today or date.today())
+
+    cross_domain = parse_cross_domain_question(message, today=today)
+    if cross_domain is not None:
+        return cross_domain
 
     if "workout" in lowered and "streak" in lowered:
         operation = AnalyticsOperation.WORKOUT_STREAK
@@ -117,8 +295,13 @@ def _model_request(state: DailyState) -> AnalyticsRequest:
     - health_averages
     - workout_frequency
     - workout_streak
+    - cross_domain_comparison
 
-    JSON fields: operation, start_date, end_date, transaction_type, category, limit.
+    JSON fields: operation, start_date, end_date, transaction_type, category,
+    currency, limit, outcome_metric, condition_metric, comparison_operator, threshold.
+    Cross-domain metrics: sleep_hours, calories_consumed, expense_amount,
+    learning_minutes, learning_sessions, workout_logged. Comparison operators:
+    gt, gte, lt, lte. Cross-domain metrics must come from different domains.
     Dates must use YYYY-MM-DD. The maximum range is 367 days and limit is at most 100.
     Use null for an unused category. Never return SQL or any additional field.
     Today is {today.isoformat()}.
@@ -128,10 +311,13 @@ def _model_request(state: DailyState) -> AnalyticsRequest:
 
     Latest question: {state.get('user_message', '')}
     """
-    response = genai.GenerativeModel(MODAL).generate_content(
-        prompt, generation_config={"response_mime_type": "application/json"}
+    return generate_gemini_content(
+        prompt,
+        model_name=MODAL,
+        generation_config={"response_mime_type": "application/json"},
+        validator=lambda text: AnalyticsRequest.model_validate(json.loads(text)),
+        operation="analytics_routing",
     )
-    return AnalyticsRequest.model_validate(json.loads(response.text))
 
 
 def route_analytics_request(state: DailyState) -> AnalyticsRequest:
@@ -145,5 +331,6 @@ def route_analytics_request(state: DailyState) -> AnalyticsRequest:
         raise ValueError(
             "I could not map that question to a supported calculation. "
             "Try asking for spending totals, category breakdowns, trends, "
-            "health averages, workout frequency, or a workout streak."
+            "health averages, workout frequency, a workout streak, or a "
+            "cross-domain threshold comparison."
         ) from exc

@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from life_copilot import storage
-from life_copilot.agent import nodes, parsing
+from life_copilot.agent import nodes, parsing, provider
 from life_copilot.services import drafts
 from pydantic import ValidationError
 from life_copilot.models import DailyLogDraft
@@ -25,6 +25,11 @@ class FakeModel:
 
     def generate_content(self, *_args, **_kwargs):
         return FakeResponse(self.payload)
+
+
+class FakeClient:
+    def __init__(self, payload):
+        self.models = FakeModel(payload)
 
 
 class FakeVectorCollection:
@@ -154,8 +159,8 @@ class DraftWorkflowTests(unittest.TestCase):
             "ambiguities": [],
         }
         with patch.object(
-            nodes.genai, "GenerativeModel", return_value=FakeModel(payload)
-        ):
+            provider.genai, "Client", return_value=FakeClient(payload)
+        ), patch.object(provider.os, "getenv", return_value="test-key"):
             result = nodes.extract_data_node(
                 {"user_message": "Spent 120 on food", "source": "text"}
             )

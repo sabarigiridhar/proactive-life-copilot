@@ -30,7 +30,18 @@ from life_copilot.storage.daily_status import (
     recalculate_daily_status,
     update_daily_status,
 )
-from life_copilot.storage.retrieval import query_sqlite, search_learning_vectors
+from life_copilot.storage.cross_domain import (
+    MINIMUM_COMPARISON_GROUP_SIZE,
+    execute_cross_domain,
+    load_daily_aggregates,
+)
+from life_copilot.storage.retrieval import (
+    get_learning_records_by_ids,
+    list_learning_search_candidates,
+    list_learning_topics,
+    query_sqlite,
+    search_learning_vectors,
+)
 from life_copilot.storage.vectors import (
     add_learning_vector,
     backfill_learning_summaries_from_chroma,

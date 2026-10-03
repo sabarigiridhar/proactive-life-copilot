@@ -16,6 +16,7 @@ The repository already contains:
 
 - `app.py`: thin Streamlit launch entry point.
 - `life_copilot/agent/`: LangGraph state, memory, routing, extraction, and workflow assembly.
+- `life_copilot/retrieval/`: typed, filtered learning retrieval and top-k evaluation.
 - `life_copilot/storage/`: SQLite repositories, migrations, retrieval, and ChromaDB synchronization.
 - `life_copilot/services/`: validated draft and saved-record operations.
 - `life_copilot/ui/`: Streamlit orchestration and focused UI components.
@@ -24,7 +25,7 @@ The repository already contains:
 - `life_copilot.db`: local structured storage.
 - `chroma_data/`: local vector storage for learning summaries.
 
-Current capabilities include multimodal logging, validated confirmation and maintenance, daily state, conversation memory, and safe typed wealth/health analytics. The largest gaps are accurate learning retrieval, cross-domain evidence, dashboards, and separation between backend and frontend.
+Current capabilities include multimodal logging, validated confirmation and maintenance, daily state, conversation memory, safe typed analytics, SQLite-grounded semantic learning retrieval, evidence-backed cross-domain comparisons, and bounded provider retries with validated output. The largest gaps are dashboards and separation between backend and frontend.
 
 ## 3. Key Product Decisions
 
@@ -116,7 +117,7 @@ Migration acceptance checks:
 
 Tasks:
 
-1. Add `requirements.txt` or `pyproject.toml` with pinned compatible versions.
+1. Maintain the pinned direct dependencies in `requirements.txt`.
 2. Add `.env.example` containing variable names only: `GEMINI_API_KEY`, `GROQ_API_KEY`, database path, Chroma path, environment, and log level.
 3. Move model names and paths into a typed settings module.
 4. Add `pytest`, temporary database fixtures, and CI-friendly test commands.
@@ -183,8 +184,8 @@ Tasks:
 6. Add hybrid learning retrieval using semantic similarity plus date/topic metadata filters.
 7. Implement cross-domain analysis in Python by joining daily aggregates. Example: compare average sleep on days food spending exceeds INR 1,000.
 8. Return an answer object containing `text`, `evidence`, `date_range`, and `confidence`.
-9. Add exponential backoff with jitter for retryable provider errors and a clear user message for permanent failures.
-10. Require every numerical answer to be traceable to query results. If no data exists, say so directly.
+9. Use `agent/provider.py` for classified provider failures, capped exponential backoff with jitter, validated output, and safe user messages.
+10. Verify every numerical answer against its evidence before rendering it. If no data exists, say so directly.
 
 Suggested graph:
 

@@ -9,6 +9,7 @@ This document describes the current SQLite schema through version 4.
 - Wealth and learning allow multiple rows for the same `entry_date`.
 - Health allows exactly one row per `entry_date`; later writes merge into that row.
 - Chroma document IDs use `learning_<sqlite_id>` to avoid date/topic collisions.
+- Chroma metadata includes the topic, ISO date, and numeric `date_ordinal`; SQLite remains authoritative for every field returned to the user.
 
 ## Shared Fields
 
@@ -40,6 +41,10 @@ Confirmed records are fetched through an allowlisted domain repository that neve
 
 Learning updates upsert `learning_<sqlite_id>` in ChromaDB and remove any matching legacy date/topic ID. Learning deletion removes the vector and SQLite row. If Chroma is unavailable, SQLite remains authoritative and the UI reports that vector synchronization needs attention. Deletion always requires a separate permanent-delete confirmation.
 
+## Learning Retrieval
+
+Learning search applies exact topic and date metadata filters before vector ranking. Each ranked Chroma ID is hydrated from `learning_logs`; stale vector IDs are discarded and vector documents are never shown as authoritative content. If Chroma is empty or unavailable, a bounded keyword ranking over filtered SQLite records returns a clearly labeled fallback. The fixture in `tests/fixtures/learning_retrieval_cases.json` measures whether expected summaries appear within each case's top-k results.
+
 ## Conversation Memory
 
 `chat_threads` stores a stable thread ID, rolling summary, summary cursor, and timestamps. `chat_messages` stores ordered user and assistant messages plus optional JSON metadata. Confirmed-record metadata contains domain and SQLite IDs, allowing follow-up references to target exact records after a Streamlit rerun.
@@ -48,9 +53,11 @@ LangGraph also uses an in-process checkpointer keyed by `thread_id`; thread IDs 
 
 ## Safe Analytics
 
-Structured questions are converted to an `AnalyticsRequest` with an allowlisted operation, bounded date range, validated transaction type, optional category, and result limit. Supported operations are wealth totals, category breakdowns, daily trends, health averages, workout frequency, and workout streaks.
+Structured questions are converted to an `AnalyticsRequest` with an allowlisted operation, bounded date range, validated filters, and result limit. Supported operations include wealth totals, category breakdowns, daily trends, health averages, workout metrics, and cross-domain threshold comparisons.
 
 Each operation executes fixed parameterized SQL from `life_copilot/storage/analytics.py`. The model may return validated routing JSON but never executable SQL. User-facing answers are formatted directly from `AnalyticsResult`, including the calculation period and matched-record count where relevant. Free-form SQL is disabled, and analytics requests cannot span more than 367 inclusive days or return more than 100 grouped rows.
+
+Cross-domain analysis loads typed daily health, wealth, and learning aggregates using fixed queries, then joins them by `entry_date` in Python. Comparisons include only dates containing both requested metrics. Expense metrics remain scoped to one currency and optional category. Results return `text`, daily `evidence`, `date_range`, and `confidence`; this metadata is persisted with the chat message and displayed in the UI. At least three dates are required in both threshold groups before reporting a directional observation, and responses explicitly avoid causal claims.
 
 ## Migration Behavior
 

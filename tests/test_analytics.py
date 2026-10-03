@@ -9,6 +9,8 @@ from pydantic import ValidationError
 
 from life_copilot import storage
 from life_copilot.agent import nodes
+from life_copilot.agent import provider
+from life_copilot.agent.provider import ProviderCallError
 from life_copilot.analytics import router
 from life_copilot.analytics.models import AnalyticsOperation, AnalyticsRequest
 from life_copilot.analytics.service import answer_analytics_request, run_analytics
@@ -25,6 +27,11 @@ class FakeModel:
 
     def generate_content(self, *_args, **_kwargs):
         return FakeResponse(self.payload)
+
+
+class FakeClient:
+    def __init__(self, payload):
+        self.models = FakeModel(payload)
 
 
 class AnalyticsTests(unittest.TestCase):
@@ -193,9 +200,11 @@ class AnalyticsTests(unittest.TestCase):
             "limit": 10,
         }
         with patch.object(
-            router.genai, "GenerativeModel", return_value=FakeModel(payload)
-        ):
-            with self.assertRaises(ValueError):
+            provider.genai, "Client", return_value=FakeClient(payload)
+        ), patch.object(
+            provider.os, "getenv", return_value="test-key"
+        ), patch.object(provider.time, "sleep"):
+            with self.assertRaises(ProviderCallError):
                 router.route_analytics_request(
                     {"user_message": "Run my custom database command"}
                 )

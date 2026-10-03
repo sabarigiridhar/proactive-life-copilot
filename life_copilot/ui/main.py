@@ -3,7 +3,6 @@
 import os
 from datetime import date
 
-import google.generativeai as genai
 import streamlit as st
 from groq import Groq
 from PIL import Image
@@ -11,9 +10,15 @@ from pydantic import ValidationError
 
 from life_copilot import storage
 from life_copilot.agent import workflow
+from life_copilot.agent.provider import (
+    ProviderCallError,
+    generate_gemini_content,
+    transcribe_groq_audio,
+)
 from life_copilot.models import DailyLogDraft
 from life_copilot.services.drafts import save_confirmed_draft
 from life_copilot.ui.draft_review import render_draft_review
+from life_copilot.ui.evidence import render_message_evidence
 from life_copilot.ui.record_maintenance import render_record_maintenance
 from life_copilot.ui.session import append_message, initialize_session, register_source
 
@@ -23,9 +28,8 @@ def run_app() -> None:
     st.title("Life Copilot")
     st.caption("Track your Wealth, Health, and Learning.")
 
-    groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
+    groq_api_key = os.getenv("GROQ_API_KEY")
+    groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
     initialize_session()
 
     current_text_key = f"text_area_{st.session_state.widget_key}"
@@ -37,6 +41,7 @@ def run_app() -> None:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
+                render_message_evidence(message.get("metadata"))
 
     today_status = storage.get_daily_status(date.today().isoformat())
     st.caption(f"Today's progress - {today_status['entry_date']}")
@@ -119,31 +124,47 @@ def run_app() -> None:
 
             if audio_value and "audio_processed" not in st.session_state:
                 with st.spinner("Transcribing..."):
-                    transcription = groq_client.audio.transcriptions.create(
-                        file=("recording.wav", audio_value.getvalue()),
-                        model="whisper-large-v3",
-                    )
-                    st.session_state[current_text_key] += f" {transcription.text} "
-                    st.session_state.audio_processed = True
-                    register_source("voice")
-                    st.rerun()
+                    if groq_client is None:
+                        st.error(
+                            "Voice transcription is not configured. Nothing was "
+                            "saved. Please add a Groq API key and try again."
+                        )
+                    else:
+                        try:
+                            transcription = transcribe_groq_audio(
+                                groq_client,
+                                file=("recording.wav", audio_value.getvalue()),
+                            )
+                        except ProviderCallError as exc:
+                            st.error(str(exc))
+                        else:
+                            st.session_state[current_text_key] += f" {transcription} "
+                            st.session_state.audio_processed = True
+                            register_source("voice")
+                            st.rerun()
 
             if uploaded_image and "image_processed" not in st.session_state:
                 with st.spinner("Analyzing..."):
-                    image = Image.open(uploaded_image)
-                    vision_model = genai.GenerativeModel("gemini-3.6-flash")
-                    vision_response = vision_model.generate_content(
-                        [
-                            "Extract key health, wealth, or learning data from this image in concise text.",
-                            image,
-                        ]
-                    )
-                    st.session_state[current_text_key] += (
-                        f" {vision_response.text.strip()} "
-                    )
-                    st.session_state.image_processed = True
-                    register_source("image")
-                    st.rerun()
+                    try:
+                        image = Image.open(uploaded_image)
+                        vision_text = generate_gemini_content(
+                            [
+                                "Extract key health, wealth, or learning data "
+                                "from this image in concise text.",
+                                image,
+                            ],
+                            model_name="gemini-3.6-flash",
+                            operation="image_extraction",
+                        )
+                    except ProviderCallError as exc:
+                        st.error(str(exc))
+                    except Exception:
+                        st.error("The uploaded image could not be read. Nothing was saved.")
+                    else:
+                        st.session_state[current_text_key] += f" {vision_text} "
+                        st.session_state.image_processed = True
+                        register_source("image")
+                        st.rerun()
 
             current_text = st.text_area(
                 "Log your day",
@@ -157,6 +178,7 @@ def run_app() -> None:
                 if current_text.strip():
                     user_message = current_text.strip()
                     append_message("user", user_message)
+                    response_metadata = None
                     with st.spinner("Processing your message..."):
                         try:
                             new_state = workflow.app_brain.invoke(
@@ -175,10 +197,21 @@ def run_app() -> None:
                             )
                             if new_state.get("draft"):
                                 st.session_state.pending_draft = new_state["draft"]
-                        except Exception as exc:
-                            ai_response = f"An error occurred: {exc}"
+                            if new_state.get("evidence") is not None:
+                                response_metadata = {
+                                    "evidence": new_state.get("evidence", []),
+                                    "date_range": new_state.get("date_range"),
+                                    "confidence": new_state.get("confidence"),
+                                }
+                        except ProviderCallError as exc:
+                            ai_response = str(exc)
+                        except Exception:
+                            ai_response = (
+                                "I could not process that request safely. "
+                                "Nothing was saved. Please try again."
+                            )
 
-                    append_message("assistant", ai_response)
+                    append_message("assistant", ai_response, metadata=response_metadata)
                     st.session_state.input_source = "text"
                     if "audio_processed" in st.session_state:
                         del st.session_state["audio_processed"]
