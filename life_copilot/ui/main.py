@@ -1,22 +1,9 @@
 """Main Streamlit screen for Life Copilot."""
 
-import os
 from datetime import date
 
 import streamlit as st
-from groq import Groq
-from PIL import Image
-from pydantic import ValidationError
-
-from life_copilot import storage
-from life_copilot.agent import workflow
-from life_copilot.agent.provider import (
-    ProviderCallError,
-    generate_gemini_content,
-    transcribe_groq_audio,
-)
-from life_copilot.models import DailyLogDraft
-from life_copilot.services.drafts import save_confirmed_draft
+from life_copilot.ui.api_client import ApiClientError, get_api_client
 from life_copilot.ui.draft_review import render_draft_review
 from life_copilot.ui.evidence import render_message_evidence
 from life_copilot.ui.record_maintenance import render_record_maintenance
@@ -28,8 +15,7 @@ def run_app() -> None:
     st.title("Life Copilot")
     st.caption("Track your Wealth, Health, and Learning.")
 
-    groq_api_key = os.getenv("GROQ_API_KEY")
-    groq_client = Groq(api_key=groq_api_key) if groq_api_key else None
+    api = get_api_client()
     initialize_session()
 
     current_text_key = f"text_area_{st.session_state.widget_key}"
@@ -40,7 +26,10 @@ def run_app() -> None:
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                if (message.get("metadata") or {}).get("event") == "api_error":
+                    st.error(message["content"])
+                else:
+                    st.markdown(message["content"])
                 render_message_evidence(message.get("metadata"))
 
     progress_date = (
@@ -48,21 +37,30 @@ def run_app() -> None:
         if st.session_state.pending_draft
         else date.today().isoformat()
     )
-    today_status = storage.get_daily_status(progress_date)
+    try:
+        with st.spinner("Loading daily status..."):
+            dashboard = api.get_dashboard_summary(
+                status_date=date.fromisoformat(progress_date)
+            )
+        today_status = dashboard.daily_status
+    except ApiClientError as exc:
+        st.error(str(exc))
+        st.info("Start the FastAPI backend and reload this page.")
+        return
     progress_label = (
         "Draft date progress"
         if st.session_state.pending_draft and progress_date != date.today().isoformat()
         else "Today's progress"
     )
-    st.caption(f"{progress_label} - {today_status['entry_date']}")
+    st.caption(f"{progress_label} - {today_status.entry_date.isoformat()}")
     status_col1, status_col2, status_col3 = st.columns(3)
     with status_col1:
-        st.metric("Health", "Logged" if today_status["health_complete"] else "Pending")
+        st.metric("Health", "Logged" if today_status.health_complete else "Pending")
     with status_col2:
-        st.metric("Wealth", "Reviewed" if today_status["wealth_reviewed"] else "Pending")
+        st.metric("Wealth", "Reviewed" if today_status.wealth_reviewed else "Pending")
     with status_col3:
         st.metric(
-            "Learning", "Logged" if today_status["learning_complete"] else "Pending"
+            "Learning", "Logged" if today_status.learning_complete else "Pending"
         )
 
     if st.session_state.pending_draft:
@@ -74,47 +72,26 @@ def run_app() -> None:
             st.rerun()
         elif action == "confirm":
             try:
-                validated = DailyLogDraft.model_validate(edited_data)
-                result = save_confirmed_draft(validated)
-                entities = workflow.remember_confirmed_draft(
-                    st.session_state.thread_id, result
-                )
-                total = result["health"] + result["wealth"] + result["learning"]
-                action_word = "Updated" if validated.operation == "update" else "Saved"
-                message = f"{action_word} {total} confirmed record(s)."
-                if result["vector_warnings"]:
-                    message += " Learning was saved, but vector indexing needs attention."
-                status = result["daily_status"]
-                missing = [
-                    label
-                    for label, complete in (
-                        ("Health", status["health_complete"]),
-                        ("Wealth", status["wealth_reviewed"]),
-                        ("Learning", status["learning_complete"]),
+                with st.spinner("Saving confirmed records..."):
+                    result = api.confirm_log(
+                        thread_id=st.session_state.thread_id,
+                        draft=edited_data,
                     )
-                    if not complete
-                ]
-                if missing:
-                    message += (
-                        f" Still pending for {status['entry_date']}: {', '.join(missing)}. "
-                        "Would you like to log one of those next?"
-                    )
-                else:
-                    message += f" Your check-in for {status['entry_date']} is complete."
                 append_message(
                     "assistant",
-                    message,
-                    metadata={"event": "confirmed_records", "entities": entities},
+                    result.assistant_text,
+                    metadata={
+                        "event": "confirmed_records",
+                        "entities": result.entities,
+                    },
                 )
                 st.session_state.pending_draft = None
                 st.session_state.widget_key += 1
                 st.rerun()
-            except ValidationError as exc:
-                st.error(f"Please correct the draft: {exc}")
-            except Exception as exc:
+            except ApiClientError as exc:
                 st.error(f"The confirmed draft could not be saved: {exc}")
     else:
-        render_record_maintenance()
+        render_record_maintenance(api)
         input_container = st.container()
         with input_container:
             col1, col2 = st.columns(2)
@@ -134,44 +111,32 @@ def run_app() -> None:
 
             if audio_value and "audio_processed" not in st.session_state:
                 with st.spinner("Transcribing..."):
-                    if groq_client is None:
-                        st.error(
-                            "Voice transcription is not configured. Nothing was "
-                            "saved. Please add a Groq API key and try again."
+                    try:
+                        transcription = api.transcribe_audio(
+                            filename=audio_value.name or "recording.wav",
+                            content=audio_value.getvalue(),
+                            content_type=audio_value.type or "audio/wav",
                         )
+                    except ApiClientError as exc:
+                        st.error(str(exc))
                     else:
-                        try:
-                            transcription = transcribe_groq_audio(
-                                groq_client,
-                                file=("recording.wav", audio_value.getvalue()),
-                            )
-                        except ProviderCallError as exc:
-                            st.error(str(exc))
-                        else:
-                            st.session_state[current_text_key] += f" {transcription} "
-                            st.session_state.audio_processed = True
-                            register_source("voice")
-                            st.rerun()
+                        st.session_state[current_text_key] += f" {transcription.text} "
+                        st.session_state.audio_processed = True
+                        register_source("voice")
+                        st.rerun()
 
             if uploaded_image and "image_processed" not in st.session_state:
                 with st.spinner("Analyzing..."):
                     try:
-                        image = Image.open(uploaded_image)
-                        vision_text = generate_gemini_content(
-                            [
-                                "Extract key health, wealth, or learning data "
-                                "from this image in concise text.",
-                                image,
-                            ],
-                            model_name="gemini-3.6-flash",
-                            operation="image_extraction",
+                        extraction = api.extract_image(
+                            filename=uploaded_image.name,
+                            content=uploaded_image.getvalue(),
+                            content_type=uploaded_image.type or "application/octet-stream",
                         )
-                    except ProviderCallError as exc:
+                    except ApiClientError as exc:
                         st.error(str(exc))
-                    except Exception:
-                        st.error("The uploaded image could not be read. Nothing was saved.")
                     else:
-                        st.session_state[current_text_key] += f" {vision_text} "
+                        st.session_state[current_text_key] += f" {extraction.text} "
                         st.session_state.image_processed = True
                         register_source("image")
                         st.rerun()
@@ -191,35 +156,24 @@ def run_app() -> None:
                     response_metadata = None
                     with st.spinner("Processing your message..."):
                         try:
-                            new_state = workflow.app_brain.invoke(
-                                {
-                                    "user_message": user_message,
-                                    "source": st.session_state.input_source,
-                                    "intent": "log",
-                                    "draft": None,
-                                    "ai_response": "",
-                                    "thread_id": st.session_state.thread_id,
-                                },
-                                config=workflow.thread_config(st.session_state.thread_id),
+                            response = api.send_message(
+                                thread_id=st.session_state.thread_id,
+                                message=user_message,
+                                source=st.session_state.input_source,
                             )
-                            ai_response = new_state.get(
-                                "ai_response", "No response was generated."
-                            )
-                            if new_state.get("draft"):
-                                st.session_state.pending_draft = new_state["draft"]
-                            if new_state.get("evidence") is not None:
+                            st.session_state.thread_id = response.thread_id
+                            ai_response = response.assistant_text
+                            if response.draft:
+                                st.session_state.pending_draft = response.draft
+                            if response.response_type == "query_answer":
                                 response_metadata = {
-                                    "evidence": new_state.get("evidence", []),
-                                    "date_range": new_state.get("date_range"),
-                                    "confidence": new_state.get("confidence"),
+                                    "evidence": response.evidence,
+                                    "date_range": response.date_range,
+                                    "confidence": response.confidence,
                                 }
-                        except ProviderCallError as exc:
+                        except ApiClientError as exc:
                             ai_response = str(exc)
-                        except Exception:
-                            ai_response = (
-                                "I could not process that request safely. "
-                                "Nothing was saved. Please try again."
-                            )
+                            response_metadata = {"event": "api_error"}
 
                     append_message("assistant", ai_response, metadata=response_metadata)
                     st.session_state.input_source = "text"

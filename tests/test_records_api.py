@@ -134,6 +134,29 @@ class RecordsApiTests(unittest.TestCase):
         )
         self.assertNotIn("original_input", first_data["items"][0])
 
+    def test_list_logs_keeps_legacy_zero_amount_readable(self):
+        storage.insert_wealth_log(
+            "2026-09-30",
+            "expense",
+            0,
+            "INR",
+            "General",
+            None,
+            "Legacy row",
+            db_path=self.settings.database_path,
+        )
+
+        response = self.client.get(
+            "/api/v1/logs/wealth",
+            params={"start_date": "2026-09-30", "end_date": "2026-09-30"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["items"][0]["amount"], 0)
+        self.assertEqual(
+            response.json()["data"]["items"][0]["transaction_type"], "Expense"
+        )
+
     def test_domain_filters_and_search_are_parameterized_and_scoped(self):
         response = self.client.get(
             "/api/v1/logs/wealth",

@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import date
 
 import streamlit as st
-from pydantic import ValidationError
 
-from life_copilot import storage
-from life_copilot.services.records import delete_saved_record, update_saved_record
+from life_copilot.ui.api_client import (
+    ApiClientError,
+    LifeCopilotApiClient,
+    get_api_client,
+)
 
 
 def _optional_text(value: str):
@@ -29,14 +31,12 @@ def _record_label(domain: str, record: dict) -> str:
     return f"#{record['id']} | {record['entry_date']} | {record['topic']}"
 
 
-def _render_delete_confirmation(pending: dict) -> None:
+def _render_delete_confirmation(
+    api: LifeCopilotApiClient, pending: dict
+) -> None:
     domain = pending["domain"]
     record_id = pending["record_id"]
-    record = storage.get_domain_log(domain, record_id)
-    if record is None:
-        st.session_state.delete_candidate = None
-        st.warning("That record no longer exists.")
-        return
+    record = pending["record"]
 
     st.warning(f"Permanently delete {_record_label(domain, record)}?")
     confirm_col, keep_col = st.columns(2)
@@ -54,14 +54,15 @@ def _render_delete_confirmation(pending: dict) -> None:
 
     if confirm:
         try:
-            result = delete_saved_record(domain, record_id)
+            with st.spinner("Deleting record..."):
+                result = api.delete_record(domain, record_id)
             message = f"Deleted {domain} record #{record_id}."
-            if result["warnings"]:
+            if result.warnings:
                 message += " Vector index cleanup needs attention."
             st.session_state.maintenance_flash = ("success", message)
             st.session_state.delete_candidate = None
             st.rerun()
-        except Exception as exc:
+        except ApiClientError as exc:
             st.error(f"The record could not be deleted: {exc}")
     elif keep:
         st.session_state.delete_candidate = None
@@ -178,8 +179,9 @@ def _learning_editor(record: dict, form_key: str) -> dict:
     }
 
 
-def render_record_maintenance() -> None:
+def render_record_maintenance(api: LifeCopilotApiClient | None = None) -> None:
     """Render a compact CRUD panel for confirmed records."""
+    api = api or get_api_client()
     if "delete_candidate" not in st.session_state:
         st.session_state.delete_candidate = None
 
@@ -191,7 +193,7 @@ def render_record_maintenance() -> None:
     expanded = st.session_state.delete_candidate is not None
     with st.expander("Manage saved records", expanded=expanded):
         if st.session_state.delete_candidate:
-            _render_delete_confirmation(st.session_state.delete_candidate)
+            _render_delete_confirmation(api, st.session_state.delete_candidate)
             return
 
         domain = st.selectbox(
@@ -200,7 +202,13 @@ def render_record_maintenance() -> None:
             format_func=str.title,
             key="maintenance_domain",
         )
-        records = storage.list_domain_logs(domain)
+        try:
+            with st.spinner("Loading saved records..."):
+                page = api.list_records(domain, page=1, page_size=50)
+            records = page.items
+        except ApiClientError as exc:
+            st.error(f"Saved records could not be loaded: {exc}")
+            return
         if not records:
             st.info(f"No saved {domain} records.")
             return
@@ -241,19 +249,19 @@ def render_record_maintenance() -> None:
 
         if update:
             try:
-                result = update_saved_record(domain, record_id, payload)
+                with st.spinner("Updating record..."):
+                    result = api.patch_record(domain, record_id, payload)
                 message = f"Updated {domain} record #{record_id}."
-                if result["warnings"]:
+                if result.warnings:
                     message += " Vector index synchronization needs attention."
                 st.session_state.maintenance_flash = ("success", message)
                 st.rerun()
-            except (ValidationError, ValueError) as exc:
-                st.error(f"Please correct the record: {exc}")
-            except Exception as exc:
+            except ApiClientError as exc:
                 st.error(f"The record could not be updated: {exc}")
         elif request_delete:
             st.session_state.delete_candidate = {
                 "domain": domain,
                 "record_id": record_id,
+                "record": record,
             }
             st.rerun()

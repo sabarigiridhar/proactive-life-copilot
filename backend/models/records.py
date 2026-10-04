@@ -6,7 +6,7 @@ from datetime import date, datetime
 from enum import Enum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.models.conversations import DailyStatusData
 
@@ -77,11 +77,18 @@ class RecordBase(BaseModel):
 
 class WealthRecord(RecordBase):
     transaction_type: Literal["Income", "Expense"]
-    amount: float = Field(gt=0)
+    amount: float = Field(ge=0)
     currency: str
     category: str
     merchant: str | None = None
     notes: str | None = None
+
+    @field_validator("transaction_type", mode="before")
+    @classmethod
+    def normalize_legacy_transaction_type(cls, value):
+        if isinstance(value, str) and value.lower() in {"income", "expense"}:
+            return value.title()
+        return value
 
 
 class HealthRecord(RecordBase):

@@ -37,7 +37,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 | --- | --- | --- | --- | --- |
 | P1 | Reliable Capture and Daily Check-in | Done | None | Validated, editable multimodal logging |
 | P2 | Memory and Trustworthy Retrieval | Done | P1 | Multi-turn, evidence-based answers |
-| P3 | FastAPI Backend | In Progress | P1, P2 | Stable API usable by any frontend |
+| P3 | FastAPI Backend | Done | P1, P2 | Stable API usable by any frontend |
 | P4 | Dashboard and Domain Pages | Not Started | P1, preferably P3 | Visible and editable personal data |
 | P5 | Next.js Frontend | Not Started | P3, P4 UX validated | Full-control production frontend |
 | P6 | Proactive Copilot | Not Started | P2, P3 | Weekly insights, goals, and alerts |
@@ -265,7 +265,8 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P3: FastAPI Backend
 
-**Epic state:** `In Progress`  
+**Epic state:** `Done`
+
 **Goal:** Expose a documented, versioned API and remove direct UI-to-graph coupling.
 
 ## P3-F1: API Foundation
@@ -325,14 +326,14 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P3-US5: Use the API from Streamlit
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P3-T22 | Create a small typed Streamlit API client. | Not Started | P3-F2, P3-F3 | |
-| [ ] | P3-T23 | Replace direct `app_brain` imports with API calls. | Not Started | P3-T22 | |
-| [ ] | P3-T24 | Display API loading and error states. | Not Started | P3-T23 | |
-| [ ] | P3-T25 | Verify the full workflow in Swagger and Streamlit. | Not Started | P3-T23-P3-T24 | |
+| [x] | P3-T22 | Create a small typed Streamlit API client. | Done | P3-F2, P3-F3 | Added typed response models, safe envelope parsing, request IDs, multipart support, and configurable API URL. |
+| [x] | P3-T23 | Replace direct `app_brain` imports with API calls. | Done | P3-T22 | Chat, confirmation, media, dashboard status, and record maintenance now use only versioned HTTP endpoints. |
+| [x] | P3-T24 | Display API loading and error states. | Done | P3-T23 | Added operation-specific spinners and safe backend, transport, and malformed-response errors. |
+| [x] | P3-T25 | Verify the full workflow in Swagger and Streamlit. | Done | P3-T23-P3-T24 | Added mocked HTTP client and Streamlit interaction tests; validated live OpenAPI and application endpoints. |
 
 **Phase P3 exit criteria:** Swagger exercises all core workflows, API tests mock external providers, and Streamlit uses only public API contracts.
 
@@ -628,7 +629,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| P3-US5 | Use the API from Streamlit | - | Ready | - | Add a typed Streamlit API client and remove direct backend coupling. |
+| P4-US1 | See the important daily information around chat | - | Ready | - | Add navigation and build the responsive dashboard around the existing API-backed chat. |
 
 ## Blockers and Decisions
 
@@ -642,6 +643,7 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-04 | P3-US5, P3-T22-P3-T25 | Added a typed Streamlit HTTP client, moved chat, confirmation, media, dashboard status, and record maintenance onto public API contracts, added loading/error states, and verified the workflow with mocked HTTP and Streamlit tests. | Codex |
 | 2026-10-04 | P3-US4, P3-T17-P3-T21 | Added paginated and filtered record APIs, validated partial updates, confirmed deletes, synchronized learning vectors, typed dashboard aggregates, and API integration tests. | Codex |
 | 2026-10-04 | P3-US3, P3-T12-P3-T16 | Added bounded multipart audio/image APIs with MIME and content validation, configurable limits, sanitized provider failures, guaranteed audio cleanup, and integration tests. | Codex |
 | 2026-10-04 | P3-US2, P3-T08-P3-T11 | Added typed message and log-confirmation APIs with stable threads, durable chat history, draft-only extraction, evidence responses, configured storage paths, and mocked-provider integration tests. | Codex |
