@@ -14,6 +14,7 @@ from typing import Any, TypeVar
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from groq import Groq
 
 load_dotenv()
 
@@ -266,19 +267,28 @@ def generate_gemini_content(
 
 
 def transcribe_groq_audio(
-    client,
+    client=None,
     *,
     file,
     model_name: str = "whisper-large-v3",
     policy: RetryPolicy = DEFAULT_RETRY_POLICY,
 ) -> str:
     """Transcribe audio through the same classified retry boundary."""
-    return call_provider(
-        lambda: client.audio.transcriptions.create(
+    def invoke():
+        active_client = client
+        if active_client is None:
+            api_key = os.getenv("GROQ_API_KEY")
+            if not api_key:
+                raise ProviderConfigurationError("GROQ_API_KEY is missing.")
+            active_client = Groq(api_key=api_key)
+        return active_client.audio.transcriptions.create(
             file=file,
             model=model_name,
             timeout=PROVIDER_TIMEOUT_SECONDS,
-        ),
+        )
+
+    return call_provider(
+        invoke,
         provider="groq",
         operation="audio_transcription",
         validator=lambda response: require_text(response, max_length=20000),

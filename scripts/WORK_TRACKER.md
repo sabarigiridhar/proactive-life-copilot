@@ -299,15 +299,15 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P3-US3: Process audio and images safely
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P3-T12 | Implement multipart audio transcription endpoint. | Not Started | P3-F1 | |
-| [ ] | P3-T13 | Implement multipart image extraction endpoint. | Not Started | P3-F1 | |
-| [ ] | P3-T14 | Enforce MIME type, file size, and duration/dimension limits. | Not Started | P3-T12-P3-T13 | |
-| [ ] | P3-T15 | Use unique temporary files and guaranteed cleanup. | Not Started | P3-T12 | |
-| [ ] | P3-T16 | Test invalid files, provider errors, and cleanup. | Not Started | P3-T12-P3-T15 | |
+| [x] | P3-T12 | Implement multipart audio transcription endpoint. | Done | P3-F1 | Added bounded `POST /api/v1/media/transcriptions` with Groq transcription. |
+| [x] | P3-T13 | Implement multipart image extraction endpoint. | Done | P3-F1 | Added decoded-image validation and Gemini extraction at `POST /api/v1/media/extractions`. |
+| [x] | P3-T14 | Enforce MIME type, file size, and duration/dimension limits. | Done | P3-T12-P3-T13 | Typed settings control byte, duration, dimension, and pixel limits. |
+| [x] | P3-T15 | Use unique temporary files and guaranteed cleanup. | Done | P3-T12 | Audio uses OS-generated names and `finally` cleanup on every completed write path. |
+| [x] | P3-T16 | Test invalid files, provider errors, and cleanup. | Done | P3-T12-P3-T15 | Multipart tests cover malformed/oversized media, MIME mismatches, limits, safe failures, and cleanup. |
 
 ## P3-F3: Records and Dashboard API
 
@@ -628,7 +628,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| P3-US3 | Process audio and images safely | - | Ready | - | Start multipart transcription and image extraction endpoints. |
+| P3-US4 | Manage domain records through REST | - | Ready | - | Start paginated domain log endpoints. |
 
 ## Blockers and Decisions
 
@@ -642,6 +642,7 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-04 | P3-US3, P3-T12-P3-T16 | Added bounded multipart audio/image APIs with MIME and content validation, configurable limits, sanitized provider failures, guaranteed audio cleanup, and integration tests. | Codex |
 | 2026-10-04 | P3-US2, P3-T08-P3-T11 | Added typed message and log-confirmation APIs with stable threads, durable chat history, draft-only extraction, evidence responses, configured storage paths, and mocked-provider integration tests. | Codex |
 | 2026-10-04 | P3-US1, P3-T01-P3-T07 | Added FastAPI backend foundation with versioned routing, settings/dependencies, CORS, request IDs, safe error envelope, health checks, and API tests. | Codex |
 | 2026-10-03 | P2-US5 | Migrated Gemini integration from deprecated `google-generativeai` to `google-genai`, added client-contract tests, and pinned direct dependencies. | Codex |
