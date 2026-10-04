@@ -37,7 +37,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 | --- | --- | --- | --- | --- |
 | P1 | Reliable Capture and Daily Check-in | Done | None | Validated, editable multimodal logging |
 | P2 | Memory and Trustworthy Retrieval | Done | P1 | Multi-turn, evidence-based answers |
-| P3 | FastAPI Backend | Not Started | P1, P2 | Stable API usable by any frontend |
+| P3 | FastAPI Backend | In Progress | P1, P2 | Stable API usable by any frontend |
 | P4 | Dashboard and Domain Pages | Not Started | P1, preferably P3 | Visible and editable personal data |
 | P5 | Next.js Frontend | Not Started | P3, P4 UX validated | Full-control production frontend |
 | P6 | Proactive Copilot | Not Started | P2, P3 | Weekly insights, goals, and alerts |
@@ -265,24 +265,24 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P3: FastAPI Backend
 
-**Epic state:** `Not Started`  
+**Epic state:** `In Progress`  
 **Goal:** Expose a documented, versioned API and remove direct UI-to-graph coupling.
 
 ## P3-F1: API Foundation
 
 ### P3-US1: Run the Life Copilot as an API service
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P3-T01 | Create the `backend/api`, `services`, `repositories`, `models`, and `core` packages. | Not Started | P1, P2 | Move incrementally. |
-| [ ] | P3-T02 | Create the FastAPI application and `/api/v1` router. | Not Started | P3-T01 | |
-| [ ] | P3-T03 | Add typed settings and dependency injection. | Not Started | P3-T01 | |
-| [ ] | P3-T04 | Add `/health` with database and vector-store checks. | Not Started | P3-T02 | |
-| [ ] | P3-T05 | Define a consistent success/error response format. | Not Started | P3-T02 | |
-| [ ] | P3-T06 | Configure local CORS from settings. | Not Started | P3-T03 | |
-| [ ] | P3-T07 | Add request IDs and safe request logging. | Not Started | P3-T02 | |
+| [x] | P3-T01 | Create the `backend/api`, `services`, `repositories`, `models`, and `core` packages. | Done | P1, P2 | Added incremental FastAPI backend package skeleton. |
+| [x] | P3-T02 | Create the FastAPI application and `/api/v1` router. | Done | P3-T01 | App factory and versioned router added. |
+| [x] | P3-T03 | Add typed settings and dependency injection. | Done | P3-T01 | Environment-backed settings and FastAPI dependencies added. |
+| [x] | P3-T04 | Add `/health` with database and vector-store checks. | Done | P3-T02 | Checks SQLite migration/query path and Chroma collection access. |
+| [x] | P3-T05 | Define a consistent success/error response format. | Done | P3-T02 | Shared envelope and exception handlers added. |
+| [x] | P3-T06 | Configure local CORS from settings. | Done | P3-T03 | CORS origins are configurable by environment. |
+| [x] | P3-T07 | Add request IDs and safe request logging. | Done | P3-T02 | Middleware adds `x-request-id` and logs request metadata only. |
 
 ## P3-F2: Conversation and Media API
 
@@ -628,7 +628,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| - | No active tracked work | - | Not Started | - | Select the next P2 story. |
+| P3-US2 | Send messages through the API | Codex | Ready | - | Start `POST /api/v1/messages`. |
 
 ## Blockers and Decisions
 
@@ -642,6 +642,7 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-04 | P3-US1, P3-T01-P3-T07 | Added FastAPI backend foundation with versioned routing, settings/dependencies, CORS, request IDs, safe error envelope, health checks, and API tests. | Codex |
 | 2026-10-03 | P2-US5 | Migrated Gemini integration from deprecated `google-generativeai` to `google-genai`, added client-contract tests, and pinned direct dependencies. | Codex |
 | 2026-10-03 | P2-US5, P2-T27-P2-T32 | Added classified provider failures, bounded exponential retries, model-output validation, safe fallbacks, evidence verification, and failure-path regression tests. | Codex |
 | 2026-10-03 | P2-US4, P2-T21-P2-T26 | Added typed daily aggregates, date-aligned threshold comparisons, persisted evidence contracts, sample-size guardrails, and numeric-grounding regression tests. | Codex |

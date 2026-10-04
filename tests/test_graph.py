@@ -119,6 +119,33 @@ class DraftWorkflowTests(unittest.TestCase):
         self.assertIsNone(draft.health.calories_consumed)
         self.assertEqual(len(draft.ambiguities), 1)
 
+    def test_no_study_statement_counts_as_zero_minute_learning_log(self):
+        draft = parsing.parse_extraction_payload(
+            {
+                "health": {
+                    "sleep_hours": None,
+                    "workout_type": "gym",
+                    "calories_consumed": None,
+                    "notes": "ate breakfast, lunch, dinner, and worked out at gym",
+                },
+                "wealth": [],
+                "learning": [],
+                "confidence": 0.9,
+                "ambiguities": [],
+            },
+            (
+                "Yesterday I ate shake for morning and chicken with curd for lunch "
+                "and egg dosa for dinner. I also did around 30 mins workout at gym. "
+                "Badly yesterday I didnt study anything and played games for the whole day"
+            ),
+            today=date(2026, 10, 4),
+        )
+
+        self.assertEqual(draft.entry_date, date(2026, 10, 3))
+        self.assertEqual(len(draft.learning), 1)
+        self.assertEqual(draft.learning[0].topic, "No study")
+        self.assertEqual(draft.learning[0].duration_minutes, 0)
+
     def test_invalid_domain_values_return_clear_validation_errors(self):
         with self.assertRaises(ValidationError) as context:
             parsing.parse_extraction_payload(

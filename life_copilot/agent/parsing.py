@@ -4,7 +4,7 @@ import json
 import re
 from datetime import date, timedelta
 
-from life_copilot.models import DailyLogDraft, ExtractionPayload, InputSource
+from life_copilot.models import DailyLogDraft, ExtractionPayload, InputSource, LearningLog
 
 def missing_draft_domains(draft: DailyLogDraft) -> list[str]:
     """Return domains not represented in the current draft."""
@@ -34,6 +34,25 @@ def resolve_entry_date(user_message: str, today: date | None = None) -> date:
         return base_date - timedelta(days=1)
     return base_date
 
+def _reported_no_learning(user_message: str) -> bool:
+    lowered = user_message.lower()
+    return bool(
+        re.search(
+            r"\b(?:did\s*not|didn't|didnt|no|zero)\s+"
+            r"(?:study|studying|learn|learning|studied)\b",
+            lowered,
+        )
+        or re.search(r"\b(?:study|studied|learned|learning)\s+nothing\b", lowered)
+    )
+
+def _no_learning_log(user_message: str) -> LearningLog:
+    return LearningLog(
+        topic="No study",
+        duration_minutes=0,
+        summary_text=user_message.strip(),
+        url_reference=None,
+    )
+
 def parse_extraction_payload(
     raw_payload: str | dict,
     user_message: str,
@@ -43,13 +62,16 @@ def parse_extraction_payload(
     """Validate untrusted model output and attach trusted request metadata."""
     data = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
     extracted = ExtractionPayload.model_validate(data)
+    learning = list(extracted.learning)
+    if not learning and _reported_no_learning(user_message):
+        learning.append(_no_learning_log(user_message))
     return DailyLogDraft(
         entry_date=resolve_entry_date(user_message, today=today),
         source=source,
         original_input=user_message,
         health=extracted.health,
         wealth=extracted.wealth,
-        learning=extracted.learning,
+        learning=learning,
         confidence=extracted.confidence,
         ambiguities=extracted.ambiguities,
     )

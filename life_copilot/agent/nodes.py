@@ -147,6 +147,9 @@ def extract_data_node(state: DailyState):
 
     Rules:
     - Use null for every unmentioned optional value. Never use zero as a placeholder.
+    - If the message explicitly says no studying or learning happened, create one
+      learning object with topic "No study", duration_minutes 0, and a concise
+      summary_text.
     - Keep each purchase, income item, and learning session separate.
     - Never add unrelated amounts together.
     - Extract only information supported by the message.

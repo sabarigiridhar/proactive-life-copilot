@@ -43,8 +43,18 @@ def run_app() -> None:
                 st.markdown(message["content"])
                 render_message_evidence(message.get("metadata"))
 
-    today_status = storage.get_daily_status(date.today().isoformat())
-    st.caption(f"Today's progress - {today_status['entry_date']}")
+    progress_date = (
+        st.session_state.pending_draft.get("entry_date")
+        if st.session_state.pending_draft
+        else date.today().isoformat()
+    )
+    today_status = storage.get_daily_status(progress_date)
+    progress_label = (
+        "Draft date progress"
+        if st.session_state.pending_draft and progress_date != date.today().isoformat()
+        else "Today's progress"
+    )
+    st.caption(f"{progress_label} - {today_status['entry_date']}")
     status_col1, status_col2, status_col3 = st.columns(3)
     with status_col1:
         st.metric("Health", "Logged" if today_status["health_complete"] else "Pending")
