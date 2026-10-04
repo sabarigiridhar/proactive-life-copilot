@@ -313,15 +313,15 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P3-US4: Manage domain records through REST
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P3-T17 | Implement paginated `GET /logs/{domain}` with filters. | Not Started | P1-F3 | |
-| [ ] | P3-T18 | Implement `PATCH /logs/{domain}/{id}`. | Not Started | P3-T17 | |
-| [ ] | P3-T19 | Implement `DELETE /logs/{domain}/{id}`. | Not Started | P3-T17 | |
-| [ ] | P3-T20 | Implement `GET /dashboard/summary`. | Not Started | P2-US2 | |
-| [ ] | P3-T21 | Add API integration tests for pagination, filters, CRUD, and summaries. | Not Started | P3-T17-P3-T20 | |
+| [x] | P3-T17 | Implement paginated `GET /logs/{domain}` with filters. | Done | P1-F3 | Added bounded pagination, date/search/source filters, and domain-specific filters with parameterized SQL. |
+| [x] | P3-T18 | Implement `PATCH /logs/{domain}/{id}`. | Done | P3-T17 | Partial updates merge into existing records, reuse domain validation, recalculate status, and synchronize learning vectors. |
+| [x] | P3-T19 | Implement `DELETE /logs/{domain}/{id}`. | Done | P3-T17 | Requires `confirm=true`, returns updated daily status, and synchronizes learning vectors. |
+| [x] | P3-T20 | Implement `GET /dashboard/summary`. | Done | P2-US2 | Returns date-scoped wealth, health, learning, trend, streak, topic, and completion metrics. |
+| [x] | P3-T21 | Add API integration tests for pagination, filters, CRUD, and summaries. | Done | P3-T17-P3-T20 | Covers private-field exclusion, injection-safe filters, validation, conflicts, vector sync, deletion confirmation, and dashboard metrics. |
 
 ### P3-US5: Use the API from Streamlit
 
@@ -628,7 +628,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| P3-US4 | Manage domain records through REST | - | Ready | - | Start paginated domain log endpoints. |
+| P3-US5 | Use the API from Streamlit | - | Ready | - | Add a typed Streamlit API client and remove direct backend coupling. |
 
 ## Blockers and Decisions
 
@@ -642,6 +642,7 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-04 | P3-US4, P3-T17-P3-T21 | Added paginated and filtered record APIs, validated partial updates, confirmed deletes, synchronized learning vectors, typed dashboard aggregates, and API integration tests. | Codex |
 | 2026-10-04 | P3-US3, P3-T12-P3-T16 | Added bounded multipart audio/image APIs with MIME and content validation, configurable limits, sanitized provider failures, guaranteed audio cleanup, and integration tests. | Codex |
 | 2026-10-04 | P3-US2, P3-T08-P3-T11 | Added typed message and log-confirmation APIs with stable threads, durable chat history, draft-only extraction, evidence responses, configured storage paths, and mocked-provider integration tests. | Codex |
 | 2026-10-04 | P3-US1, P3-T01-P3-T07 | Added FastAPI backend foundation with versioned routing, settings/dependencies, CORS, request IDs, safe error envelope, health checks, and API tests. | Codex |

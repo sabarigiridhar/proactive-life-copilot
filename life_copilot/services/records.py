@@ -25,6 +25,7 @@ def update_saved_record(
     *,
     db_path: str | Path = storage.DEFAULT_DB_PATH,
     vector_collection=None,
+    chroma_path: str | Path = storage.DEFAULT_CHROMA_PATH,
 ) -> dict:
     """Validate and update one saved record, including derived state."""
     normalized = domain.lower()
@@ -74,7 +75,7 @@ def update_saved_record(
         try:
             collection = vector_collection
             if collection is None:
-                collection = storage.init_chroma_db()
+                collection = storage.init_chroma_db(chroma_path)
             storage.delete_learning_vector(
                 collection,
                 record_id,
@@ -117,6 +118,7 @@ def delete_saved_record(
     *,
     db_path: str | Path = storage.DEFAULT_DB_PATH,
     vector_collection=None,
+    chroma_path: str | Path = storage.DEFAULT_CHROMA_PATH,
 ) -> dict:
     """Delete one record and recalculate completion for its date."""
     normalized = domain.lower()
@@ -129,7 +131,7 @@ def delete_saved_record(
         try:
             collection = vector_collection
             if collection is None:
-                collection = storage.init_chroma_db()
+                collection = storage.init_chroma_db(chroma_path)
             storage.delete_learning_vector(
                 collection,
                 record_id,
