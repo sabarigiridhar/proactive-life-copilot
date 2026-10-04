@@ -1,5 +1,6 @@
 """Shared LangGraph state shape and state helpers."""
 
+from datetime import date
 from pathlib import Path
 from typing import TypedDict
 
@@ -13,6 +14,7 @@ class DailyState(TypedDict, total=False):
     chroma_path: str
     user_message: str
     source: InputSource
+    entry_date: date | None
     intent: str
     draft: dict | None
     ai_response: str

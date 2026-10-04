@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -13,9 +13,12 @@ class ApiError(BaseModel):
     details: dict[str, Any] | None = None
 
 
-class ApiResponse(BaseModel):
+ResponseData = TypeVar("ResponseData")
+
+
+class ApiResponse(BaseModel, Generic[ResponseData]):
     success: bool = True
-    data: Any | None = None
+    data: ResponseData | None = None
     error: ApiError | None = None
     request_id: str
 
@@ -32,7 +35,7 @@ class HealthData(BaseModel):
     vector_store: DependencyHealth
 
 
-def success_response(data: Any, request_id: str) -> ApiResponse:
+def success_response(data: ResponseData, request_id: str) -> ApiResponse[ResponseData]:
     return ApiResponse(success=True, data=data, request_id=request_id)
 
 

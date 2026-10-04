@@ -162,7 +162,10 @@ def extract_data_node(state: DailyState):
             model_name=MODAL,
             generation_config={"response_mime_type": "application/json"},
             validator=lambda text: parse_extraction_payload(
-                text, user_message, source
+                text,
+                user_message,
+                source,
+                entry_date=state.get("entry_date"),
             ),
             operation="daily_log_extraction",
         )

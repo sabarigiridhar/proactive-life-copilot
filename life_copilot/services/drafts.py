@@ -10,6 +10,7 @@ def save_confirmed_draft(
     draft_data: DailyLogDraft | dict,
     db_path: str | Path = db_utils.DEFAULT_DB_PATH,
     vector_collection=None,
+    chroma_path: str | Path = db_utils.DEFAULT_CHROMA_PATH,
 ) -> dict:
     """Validate and persist a user-confirmed draft."""
     draft = (
@@ -100,7 +101,7 @@ def save_confirmed_draft(
 
         if vector_available:
             try:
-                collection = collection or db_utils.init_chroma_db()
+                collection = collection or db_utils.init_chroma_db(chroma_path)
                 db_utils.add_learning_vector(
                     collection,
                     learning_id,

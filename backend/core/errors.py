@@ -24,11 +24,15 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [
+        {key: value for key, value in error.items() if key != "ctx"}
+        for error in exc.errors()
+    ]
     response = error_response(
         code="validation_error",
         message="The request payload or parameters are invalid.",
         request_id=_request_id(request),
-        details={"errors": exc.errors()},
+        details={"errors": errors},
     )
     return JSONResponse(status_code=422, content=response.model_dump())
 

@@ -288,14 +288,14 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P3-US2: Send messages through the API
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P3-T08 | Implement `POST /api/v1/messages`. | Not Started | P3-F1, P2 | |
-| [ ] | P3-T09 | Return stable thread ID, response type, drafts, and evidence. | Not Started | P3-T08 | |
-| [ ] | P3-T10 | Implement `POST /api/v1/logs/confirm`. | Not Started | P3-T08, P1-US2 | |
-| [ ] | P3-T11 | Add API tests for log, query, clarify, and confirm paths. | Not Started | P3-T08-P3-T10 | Mock providers. |
+| [x] | P3-T08 | Implement `POST /api/v1/messages`. | Done | P3-F1, P2 | Runs the thread-scoped graph and persists conversation history. |
+| [x] | P3-T09 | Return stable thread ID, response type, drafts, and evidence. | Done | P3-T08 | Added typed log, query, clarification, message, and error responses. |
+| [x] | P3-T10 | Implement `POST /api/v1/logs/confirm`. | Done | P3-T08, P1-US2 | Validates and saves drafts, updates thread entities, and returns saved IDs/status. |
+| [x] | P3-T11 | Add API tests for log, query, clarify, and confirm paths. | Done | P3-T08-P3-T10 | Provider calls are mocked; draft isolation, evidence, history, validation, and confirmation are covered. |
 
 ### P3-US3: Process audio and images safely
 
@@ -628,7 +628,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| P3-US2 | Send messages through the API | Codex | Ready | - | Start `POST /api/v1/messages`. |
+| P3-US3 | Process audio and images safely | - | Ready | - | Start multipart transcription and image extraction endpoints. |
 
 ## Blockers and Decisions
 
@@ -642,6 +642,7 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-04 | P3-US2, P3-T08-P3-T11 | Added typed message and log-confirmation APIs with stable threads, durable chat history, draft-only extraction, evidence responses, configured storage paths, and mocked-provider integration tests. | Codex |
 | 2026-10-04 | P3-US1, P3-T01-P3-T07 | Added FastAPI backend foundation with versioned routing, settings/dependencies, CORS, request IDs, safe error envelope, health checks, and API tests. | Codex |
 | 2026-10-03 | P2-US5 | Migrated Gemini integration from deprecated `google-generativeai` to `google-genai`, added client-contract tests, and pinned direct dependencies. | Codex |
 | 2026-10-03 | P2-US5, P2-T27-P2-T32 | Added classified provider failures, bounded exponential retries, model-output validation, safe fallbacks, evidence verification, and failure-path regression tests. | Codex |

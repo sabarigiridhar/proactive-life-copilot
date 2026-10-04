@@ -58,6 +58,7 @@ def parse_extraction_payload(
     user_message: str,
     source: InputSource = "text",
     today: date | None = None,
+    entry_date: date | None = None,
 ) -> DailyLogDraft:
     """Validate untrusted model output and attach trusted request metadata."""
     data = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
@@ -66,7 +67,7 @@ def parse_extraction_payload(
     if not learning and _reported_no_learning(user_message):
         learning.append(_no_learning_log(user_message))
     return DailyLogDraft(
-        entry_date=resolve_entry_date(user_message, today=today),
+        entry_date=entry_date or resolve_entry_date(user_message, today=today),
         source=source,
         original_input=user_message,
         health=extracted.health,
