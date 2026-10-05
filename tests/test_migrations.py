@@ -78,7 +78,7 @@ class MigrationTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_migration_preserves_multi_entry_data_and_merges_health(self):
-        self.assertEqual(run_migrations(self.db_path), [1, 2, 3, 4])
+        self.assertEqual(run_migrations(self.db_path), [1, 2, 3, 4, 5])
 
         with closing(sqlite3.connect(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
@@ -106,13 +106,18 @@ class MigrationTests(unittest.TestCase):
                 """
             ).fetchone()
             self.assertEqual(tuple(status), (1, 1, 1))
+            preferences = conn.execute(
+                "SELECT * FROM app_preferences WHERE id = 1"
+            ).fetchone()
+            self.assertEqual(preferences["default_currency"], "INR")
+            self.assertEqual(preferences["weekly_learning_minutes"], 300)
 
     def test_migration_is_repeatable(self):
-        self.assertEqual(run_migrations(self.db_path), [1, 2, 3, 4])
+        self.assertEqual(run_migrations(self.db_path), [1, 2, 3, 4, 5])
         self.assertEqual(run_migrations(self.db_path), [])
 
         with closing(sqlite3.connect(self.db_path)) as conn:
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 4)
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0], 5)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM wealth_logs").fetchone()[0], 2)
 
     def test_health_date_is_unique_after_migration(self):
@@ -129,7 +134,7 @@ class MigrationTests(unittest.TestCase):
 
     def test_fresh_database_gets_latest_schema(self):
         fresh_path = Path(self.temp_dir.name) / "fresh.db"
-        self.assertEqual(run_migrations(fresh_path), [1, 2, 3, 4])
+        self.assertEqual(run_migrations(fresh_path), [1, 2, 3, 4, 5])
         with closing(sqlite3.connect(fresh_path)) as conn:
             tables = {
                 row[0]
@@ -145,6 +150,7 @@ class MigrationTests(unittest.TestCase):
                 "daily_status",
                 "chat_threads",
                 "chat_messages",
+                "app_preferences",
             }
             <= tables
         )

@@ -9,9 +9,11 @@ from life_copilot.storage.base import (
 from life_copilot.storage.conversations import (
     add_chat_message,
     create_chat_thread,
+    get_chat_thread,
     get_chat_messages,
     get_last_confirmed_entities,
     get_memory_window,
+    list_chat_threads,
     update_chat_summary,
 )
 from life_copilot.storage.domain_logs import (
@@ -41,6 +43,10 @@ from life_copilot.storage.retrieval import (
     list_learning_topics,
     query_sqlite,
     search_learning_vectors,
+)
+from life_copilot.storage.preferences import (
+    get_app_preferences,
+    update_app_preferences,
 )
 from life_copilot.storage.vectors import (
     add_learning_vector,

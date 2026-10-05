@@ -1,3 +1,4 @@
+import json
 import unittest
 from datetime import date
 
@@ -366,6 +367,96 @@ class StreamlitApiClientTests(unittest.TestCase):
         self.assertEqual(requests[0].url.params["topic"], "RAG")
         self.assertEqual(requests[0].url.params["start_date"], "2026-10-01")
         self.assertEqual(requests[0].url.params["end_date"], "2026-10-05")
+        client.close()
+
+    def test_settings_reviews_and_backup_use_typed_contracts(self):
+        requests = []
+        settings_data = {
+            "preferences": {
+                "default_currency": "INR",
+                "weekly_spending_limit": None,
+                "weekly_learning_minutes": 300,
+                "weekly_workouts": 3,
+                "sleep_hours_target": 8,
+                "updated_at": "2026-10-05T10:00:00Z",
+            },
+            "providers": [
+                {
+                    "provider": "Gemini",
+                    "capability": "Chat",
+                    "model": "gemini-test",
+                    "configured": True,
+                }
+            ],
+        }
+
+        def handler(request):
+            requests.append(request)
+            path = request.url.path
+            if path.endswith("/settings"):
+                payload = settings_data
+                if request.method == "PATCH":
+                    submitted = json.loads(request.content)
+                    payload = {
+                        **settings_data,
+                        "preferences": {
+                            **settings_data["preferences"],
+                            **submitted,
+                        },
+                    }
+                return httpx.Response(200, json=envelope(payload))
+            if path.endswith("/insights/weekly"):
+                return httpx.Response(
+                    200,
+                    json=envelope(
+                        {
+                            "reviews": [],
+                            "generation_available": False,
+                            "message": "No weekly reviews yet.",
+                        }
+                    ),
+                )
+            if path.endswith("/data/backups"):
+                return httpx.Response(
+                    201,
+                    json=envelope(
+                        {
+                            "backup_name": "snapshot_test",
+                            "created_at": "2026-10-05T10:00:00Z",
+                            "includes": ["SQLite database"],
+                            "warnings": [],
+                        }
+                    ),
+                )
+            raise AssertionError(path)
+
+        client = self._client(handler)
+        settings = client.get_settings()
+        updated = client.update_settings(
+            {
+                "default_currency": "USD",
+                "weekly_spending_limit": 500,
+                "weekly_learning_minutes": 240,
+                "weekly_workouts": 4,
+                "sleep_hours_target": 7.5,
+            }
+        )
+        reviews = client.list_weekly_reviews()
+        backup = client.create_backup()
+
+        self.assertTrue(settings.providers[0].configured)
+        self.assertEqual(updated.preferences.default_currency, "USD")
+        self.assertFalse(reviews.generation_available)
+        self.assertEqual(backup.backup_name, "snapshot_test")
+        self.assertEqual(
+            [(request.method, request.url.path) for request in requests],
+            [
+                ("GET", "/api/v1/settings"),
+                ("PATCH", "/api/v1/settings"),
+                ("GET", "/api/v1/insights/weekly"),
+                ("POST", "/api/v1/data/backups"),
+            ],
+        )
         client.close()
 
 

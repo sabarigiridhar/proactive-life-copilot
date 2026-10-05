@@ -107,7 +107,7 @@ class MediaApiTests(unittest.TestCase):
         with patch("backend.services.media.transcribe_groq_audio") as transcribe:
             unsupported = self.client.post(
                 "/api/v1/media/transcriptions",
-                files={"file": ("audio.webm", b"data", "audio/webm")},
+                files={"file": ("audio.aac", b"data", "audio/aac")},
             )
             oversized = self.client.post(
                 "/api/v1/media/transcriptions",

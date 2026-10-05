@@ -4,8 +4,10 @@ import streamlit as st
 
 from life_copilot.ui.main import run_app, run_records_page
 from life_copilot.ui.learning import run_learning_page
+from life_copilot.ui.settings import run_settings_page
 from life_copilot.ui.theme import apply_app_styles
 from life_copilot.ui.wealth import run_wealth_page
+from life_copilot.ui.weekly_review import run_weekly_review_page
 
 
 st.set_page_config(
@@ -35,6 +37,18 @@ navigation = st.navigation(
             title="Learning",
             icon=":material/school:",
             url_path="learning",
+        ),
+        st.Page(
+            run_weekly_review_page,
+            title="Weekly Review",
+            icon=":material/auto_awesome:",
+            url_path="weekly-review",
+        ),
+        st.Page(
+            run_settings_page,
+            title="Settings",
+            icon=":material/settings:",
+            url_path="settings",
         ),
         st.Page(
             run_records_page,

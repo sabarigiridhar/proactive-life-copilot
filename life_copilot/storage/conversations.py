@@ -7,6 +7,7 @@ from pathlib import Path
 
 from life_copilot.storage.base import DEFAULT_DB_PATH, _database
 
+
 def create_chat_thread(
     thread_id: str,
     title: str | None = None,
@@ -53,10 +54,104 @@ def add_chat_message(
             ),
         )
         conn.execute(
-            "UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (thread_id,),
+            """
+            UPDATE chat_threads
+            SET title = CASE
+                    WHEN ? = 'user' AND (title IS NULL OR TRIM(title) = '')
+                        THEN SUBSTR(?, 1, 80)
+                    ELSE title
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (role, content.strip(), thread_id),
         )
         return cursor.lastrowid
+
+
+def list_chat_threads(
+    *,
+    limit: int = 50,
+    db_path: str | Path = DEFAULT_DB_PATH,
+) -> list[dict]:
+    """Return recently active conversation threads with lightweight summaries."""
+    limit = max(1, min(int(limit), 100))
+    with _database(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                threads.id,
+                COALESCE(
+                    NULLIF(TRIM(threads.title), ''),
+                    (
+                        SELECT first_user.content
+                        FROM chat_messages AS first_user
+                        WHERE first_user.thread_id = threads.id
+                          AND first_user.role = 'user'
+                        ORDER BY first_user.id
+                        LIMIT 1
+                    ),
+                    'New conversation'
+                ) AS title,
+                threads.created_at,
+                threads.updated_at,
+                COUNT(messages.id) AS message_count,
+                (
+                    SELECT recent.content
+                    FROM chat_messages AS recent
+                    WHERE recent.thread_id = threads.id
+                    ORDER BY recent.id DESC
+                    LIMIT 1
+                ) AS last_message
+            FROM chat_threads AS threads
+            LEFT JOIN chat_messages AS messages ON messages.thread_id = threads.id
+            GROUP BY threads.id
+            ORDER BY threads.updated_at DESC, threads.id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_chat_thread(
+    thread_id: str,
+    *,
+    message_limit: int = 200,
+    db_path: str | Path = DEFAULT_DB_PATH,
+) -> dict | None:
+    """Return one conversation and its recent chronological messages."""
+    with _database(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT id,
+                   COALESCE(
+                       NULLIF(TRIM(title), ''),
+                       (
+                           SELECT first_user.content
+                           FROM chat_messages AS first_user
+                           WHERE first_user.thread_id = chat_threads.id
+                             AND first_user.role = 'user'
+                           ORDER BY first_user.id
+                           LIMIT 1
+                       ),
+                       'New conversation'
+                   ) AS title,
+                   created_at, updated_at
+            FROM chat_threads
+            WHERE id = ?
+            """,
+            (thread_id,),
+        ).fetchone()
+    if row is None:
+        return None
+    thread = dict(row)
+    thread["messages"] = get_chat_messages(
+        thread_id,
+        limit=message_limit,
+        db_path=db_path,
+    )
+    return thread
 
 
 def get_chat_messages(

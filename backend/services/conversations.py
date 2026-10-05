@@ -6,14 +6,23 @@ from uuid import uuid4
 
 from backend.core.settings import Settings
 from backend.models.conversations import (
+    CancelLogData,
+    CancelLogRequest,
     ConfirmLogData,
     ConfirmLogRequest,
+    ConversationDetailData,
+    ConversationListData,
     MessageData,
     MessageRequest,
     SavedRecordCounts,
     SavedRecordIds,
 )
-from backend.repositories.conversations import initialize_conversation, store_message
+from backend.repositories.conversations import (
+    initialize_conversation,
+    list_conversations,
+    load_conversation,
+    store_message,
+)
 from life_copilot.agent import workflow
 from life_copilot.services.drafts import save_confirmed_draft
 
@@ -30,6 +39,32 @@ def _response_type(state: dict) -> str:
     if state.get("intent") == "query":
         return "query_answer"
     return "message"
+
+
+def get_conversations(settings: Settings, *, limit: int = 50) -> ConversationListData:
+    """Return recent thread summaries for conversation navigation."""
+    return ConversationListData(
+        items=list_conversations(db_path=settings.database_path, limit=limit)
+    )
+
+
+def get_conversation(
+    thread_id: str,
+    settings: Settings,
+    *,
+    message_limit: int = 200,
+) -> ConversationDetailData | None:
+    """Return one thread and its recent message history."""
+    conversation = load_conversation(
+        thread_id,
+        db_path=settings.database_path,
+        message_limit=message_limit,
+    )
+    return (
+        ConversationDetailData.model_validate(conversation)
+        if conversation is not None
+        else None
+    )
 
 
 def send_message(request: MessageRequest, settings: Settings) -> MessageData:
@@ -63,6 +98,7 @@ def send_message(request: MessageRequest, settings: Settings) -> MessageData:
     response_type = _response_type(state)
     metadata = {
         "response_type": response_type,
+        "draft": state.get("draft"),
         "evidence": state.get("evidence") or [],
         "date_range": state.get("date_range"),
         "confidence": state.get("confidence"),
@@ -108,6 +144,20 @@ def _confirmation_text(result: dict, operation: str) -> str:
             f"{', '.join(missing)}. Would you like to log one of those next?"
         )
     return f"{text} Your check-in for {status['entry_date']} is complete."
+
+
+def cancel_log(request: CancelLogRequest, settings: Settings) -> CancelLogData:
+    """Persist an explicit draft cancellation in conversation history."""
+    initialize_conversation(request.thread_id, settings.database_path)
+    result = CancelLogData(thread_id=request.thread_id)
+    store_message(
+        request.thread_id,
+        "assistant",
+        result.assistant_text,
+        db_path=settings.database_path,
+        metadata={"event": "draft_cancelled"},
+    )
+    return result
 
 
 def confirm_log(request: ConfirmLogRequest, settings: Settings) -> ConfirmLogData:

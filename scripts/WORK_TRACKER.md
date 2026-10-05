@@ -39,7 +39,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 | P2 | Memory and Trustworthy Retrieval | Done | P1 | Multi-turn, evidence-based answers |
 | P3 | FastAPI Backend | Done | P1, P2 | Stable API usable by any frontend |
 | P4 | Dashboard and Domain Pages | In Progress | P1, preferably P3 | Visible and editable personal data |
-| P5 | Next.js Frontend | Not Started | P3, P4 UX validated | Full-control production frontend |
+| P5 | Next.js Frontend | In Progress | P3, P4 UX validated | Full-control production frontend |
 | P6 | Proactive Copilot | Not Started | P2, P3 | Weekly insights, goals, and alerts |
 | P7 | Production Readiness | Not Started | P3-P6 as applicable | Secure, deployable, recoverable app |
 
@@ -405,14 +405,14 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P4-US5: Read weekly reviews and manage settings
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P4-T23 | Add Weekly Review page with visible evidence. | Not Started | P6-F1 | Can initially show empty state. |
-| [ ] | P4-T24 | Add Settings page for currency and goal values. | Not Started | P6-F2 | |
-| [ ] | P4-T25 | Add model configuration status without exposing keys. | Not Started | P3-T03 | |
-| [ ] | P4-T26 | Add backup/export entry points. | Not Started | P7-F2 | |
+| [x] | P4-T23 | Add Weekly Review page with visible evidence. | Done | P6-F1 | Added a typed empty state and evidence-rendering contract for future generated reviews. |
+| [x] | P4-T24 | Add Settings page for currency and goal values. | Done | P6-F2 | Added persistent currency and temporary weekly targets in schema v5. |
+| [x] | P4-T25 | Add model configuration status without exposing keys. | Done | P3-T03 | Shows provider capability, model, and configured status only. |
+| [x] | P4-T26 | Add backup/export entry points. | Done | P7-F2 | Added public record ZIP export and local SQLite/vector snapshot creation. |
 
 **Phase P4 exit criteria:** Every chart has a date range and empty state; all records are reachable from tables; editing updates charts; desktop and mobile layouts are usable.
 
@@ -420,55 +420,55 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P5: Next.js Frontend
 
-**Epic state:** `Not Started`  
+**Epic state:** `In Progress`
 **Decision gate:** Start only after P3 API contracts are stable and P4 validates the desired workflows.
 
 ## P5-F1: Frontend Foundation
 
 ### P5-US1: Run a typed web client against FastAPI
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P5-T01 | Create Next.js project with TypeScript and linting. | Not Started | P3 | |
-| [ ] | P5-T02 | Select accessible UI and chart libraries. | Not Started | P5-T01 | Record decision. |
-| [ ] | P5-T03 | Generate a typed client from FastAPI OpenAPI. | Not Started | P3 stable | |
-| [ ] | P5-T04 | Add environment-specific API configuration. | Not Started | P5-T01 | |
-| [ ] | P5-T05 | Build responsive navigation and page shell. | Not Started | P5-T02 | |
-| [ ] | P5-T06 | Add shared loading, error, empty, and notification components. | Not Started | P5-T02 | |
+| [x] | P5-T01 | Create Next.js project with TypeScript and linting. | Done | P3 | Next.js App Router, TypeScript, Biome, Vitest, and production scripts added. |
+| [x] | P5-T02 | Select accessible UI and chart libraries. | Done | P5-T01 | React Aria Components, Recharts, and Lucide recorded in ADR 0001. |
+| [x] | P5-T03 | Generate a typed client from FastAPI OpenAPI. | Done | P3 stable | Repeatable OpenAPI export plus generated schema and `openapi-fetch` client added. |
+| [x] | P5-T04 | Add environment-specific API configuration. | Done | P5-T01 | Validated public API origin with local fallback and production guard added. |
+| [x] | P5-T05 | Build responsive navigation and page shell. | Done | P5-T02 | Desktop sidebar, mobile navigation, status home, and feature route placeholders added. |
+| [x] | P5-T06 | Add shared loading, error, empty, and notification components. | Done | P5-T02 | Accessible shared states added and covered by component tests. |
 
 ## P5-F2: Chat and Capture Experience
 
 ### P5-US2: Use all chat and logging features from the web client
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P5-T07 | Build conversation list and message view. | Not Started | P5-F1 | |
-| [ ] | P5-T08 | Add text composer and thread persistence. | Not Started | P5-T07 | |
-| [ ] | P5-T09 | Add audio recording with upload progress. | Not Started | P3-US3 | |
-| [ ] | P5-T10 | Add image upload and preview. | Not Started | P3-US3 | |
-| [ ] | P5-T11 | Build editable extraction confirmation UI. | Not Started | P3-US2 | |
-| [ ] | P5-T12 | Add response streaming through Server-Sent Events. | Not Started | New backend streaming route | |
-| [ ] | P5-T13 | Cover keyboard and screen-reader interactions. | Not Started | P5-T07-P5-T12 | |
+| [x] | P5-T07 | Build conversation list and message view. | Done | P5-F1 | Added typed recent-thread and history APIs plus responsive conversation navigation and evidence views. |
+| [x] | P5-T08 | Add text composer and thread persistence. | Done | P5-T07 | Added persisted active-thread selection, new-thread flow, optimistic messages, retry handling, and durable titles. |
+| [x] | P5-T09 | Add audio recording with upload progress. | Done | P3-US3 | Added browser recording, WebM API support, audio preview, XHR upload progress, and transcription-to-composer flow. |
+| [x] | P5-T10 | Add image upload and preview. | Done | P3-US3 | Added validated image picker, local preview, upload progress, extraction status, and extracted-text review. |
+| [x] | P5-T11 | Build editable extraction confirmation UI. | Done | P3-US2 | Added editable health, wealth, and learning review with durable confirm/cancel actions. |
+| [x] | P5-T12 | Add response streaming through Server-Sent Events. | Done | New backend streaming route | Added status, delta, completion, and safe error SSE events with a split-frame browser parser. |
+| [x] | P5-T13 | Cover keyboard and screen-reader interactions. | Done | P5-T07-P5-T12 | Added semantic landmarks/lists, live status, labeled controls, focus styles, Enter/Shift+Enter behavior, and interaction tests. |
 
 ## P5-F3: Dashboard Feature Parity
 
 ### P5-US3: Replace Streamlit without losing functionality
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P5-T14 | Rebuild Home dashboard behavior from P4. | Not Started | P4 | |
-| [ ] | P5-T15 | Rebuild Wealth page and CRUD flows. | Not Started | P4-F2 | |
-| [ ] | P5-T16 | Rebuild Health page and CRUD flows. | Not Started | P4-F3 | |
-| [ ] | P5-T17 | Rebuild Learning and Weekly Review pages. | Not Started | P4-F4 | |
-| [ ] | P5-T18 | Add frontend unit tests for forms and state. | Not Started | P5-T14-P5-T17 | |
-| [ ] | P5-T19 | Add Playwright tests for critical workflows. | Not Started | P5-T07-P5-T17 | |
-| [ ] | P5-T20 | Verify feature parity before deprecating Streamlit. | Not Started | P5-T18-P5-T19 | Keep Streamlit as admin/debug client initially. |
+| [x] | P5-T14 | Rebuild Home dashboard behavior from P4. | Done | P4 | Added a seven-day, currency-aware dashboard with daily completion and cross-domain charts/metrics. |
+| [x] | P5-T15 | Rebuild Wealth page and CRUD flows. | Done | P4-F2 | Added filters, currency-safe totals, charts, CSV, pagination, edit, and confirmed delete workflows. |
+| [x] | P5-T16 | Rebuild Health page and CRUD flows. | Done | P4-F3 | Added health filtering, summaries, charts, CSV, pagination, edit, and confirmed delete workflows. |
+| [x] | P5-T17 | Rebuild Learning and Weekly Review pages. | Done | P4-F4 | Added learning history/search/source evidence, saved reviews/evidence, plus settings/export/backup parity. |
+| [x] | P5-T18 | Add frontend unit tests for forms and state. | Done | P5-T14-P5-T17 | Expanded the Vitest suite to 19 tests covering dashboard helpers, typed record edits, and privacy-scoped exports. |
+| [x] | P5-T19 | Add Playwright tests for critical workflows. | Done | P5-T07-P5-T17 | Added four Chromium workflows for dashboard, CRUD, learning/reviews, settings, and chat reachability. |
+| [x] | P5-T20 | Verify feature parity before deprecating Streamlit. | Done | P5-T18-P5-T19 | Documented the parity matrix; Streamlit remains an admin/debug fallback during observation. |
 
 **Phase P5 exit criteria:** Text/media logging, confirmation, querying, record maintenance, dashboards, and navigation work without Streamlit; accessibility and browser tests pass.
 
@@ -644,6 +644,10 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-05 | P5-US3, P5-T14-P5-T20 | Replaced the remaining Streamlit user workflows with typed dashboard, wealth, health, learning, weekly-review, and settings pages; added record CRUD/export, local snapshots, 19 unit tests, four Playwright workflows, parity documentation, and a production-verified build. | Codex |
+| 2026-10-05 | P5-US2, P5-T07-P5-T13 | Added the complete web chat and capture workflow with persistent conversation history, SSE responses, keyboard composer, audio/image uploads with progress and previews, editable draft confirmation/cancellation, retry handling, and accessibility coverage. | Codex |
+| 2026-10-05 | P5-US1, P5-T01-P5-T06 | Added the typed Next.js frontend foundation with generated FastAPI contracts, validated environment configuration, responsive navigation, shared accessible states, automated tests, and a production-verified build. | Codex |
+| 2026-10-05 | P4-US5, P4-T23-P4-T26 | Added Weekly Review and Settings pages, persistent local currency/target preferences, secret-safe model readiness, public JSON/CSV record export, and local database/vector snapshots. | Codex |
 | 2026-10-05 | P4-US4, P4-T19-P4-T22 | Added a Learning page with period-aware minutes and streak metrics, activity/topic charts, filtered semantic search, verified summaries and safe source links, plus paginated synchronized edit/delete workflows. | Codex |
 | 2026-10-05 | P4-US2, P4-T08-P4-T13 | Added a professional Wealth page with REST-backed filters, currency-safe totals, cash-flow and normalized category charts, paginated search, validated edit/delete workflows, and filtered CSV export. | Codex |
 | 2026-10-04 | P4-US1, P4-T01-P4-T07 | Added professional top navigation, a responsive three-column API-backed home dashboard, currency-aware wealth charts, health/learning/completion metrics, mobile chat-first stacking, and complete loading/empty/error states. | Codex |

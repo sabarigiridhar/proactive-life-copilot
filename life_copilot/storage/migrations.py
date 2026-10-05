@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
-LATEST_SCHEMA_VERSION = 4
+LATEST_SCHEMA_VERSION = 5
 
 
 WEALTH_SCHEMA = """
@@ -85,6 +85,26 @@ CREATE TABLE chat_messages (
     metadata_json TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (thread_id) REFERENCES chat_threads(id) ON DELETE CASCADE
+)
+"""
+
+APP_PREFERENCES_SCHEMA = """
+CREATE TABLE app_preferences (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    default_currency TEXT NOT NULL DEFAULT 'INR',
+    weekly_spending_limit REAL CHECK (
+        weekly_spending_limit IS NULL OR weekly_spending_limit >= 0
+    ),
+    weekly_learning_minutes INTEGER NOT NULL DEFAULT 300 CHECK (
+        weekly_learning_minutes BETWEEN 0 AND 10080
+    ),
+    weekly_workouts INTEGER NOT NULL DEFAULT 3 CHECK (
+        weekly_workouts BETWEEN 0 AND 14
+    ),
+    sleep_hours_target REAL NOT NULL DEFAULT 8 CHECK (
+        sleep_hours_target BETWEEN 0 AND 24
+    ),
+    updated_at TEXT NOT NULL
 )
 """
 
@@ -291,11 +311,27 @@ def _migration_004_chat_memory(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migration_005_app_preferences(conn: sqlite3.Connection) -> None:
+    """Persist the local currency preference and temporary dashboard targets."""
+    conn.execute(APP_PREFERENCES_SCHEMA)
+    conn.execute(
+        """
+        INSERT INTO app_preferences (
+            id, default_currency, weekly_spending_limit,
+            weekly_learning_minutes, weekly_workouts, sleep_hours_target,
+            updated_at
+        ) VALUES (1, 'INR', NULL, 300, 3, 8, ?)
+        """,
+        (_utc_now(),),
+    )
+
+
 MIGRATIONS = (
     (1, "daily_data_model", _migration_001_daily_data_model),
     (2, "original_input_metadata", _migration_002_original_input),
     (3, "daily_completion_status", _migration_003_daily_status),
     (4, "conversation_memory", _migration_004_chat_memory),
+    (5, "app_preferences", _migration_005_app_preferences),
 )
 
 

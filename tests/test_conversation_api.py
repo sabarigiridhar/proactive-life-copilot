@@ -78,7 +78,11 @@ class ConversationApiTests(unittest.TestCase):
         paths = self.client.get("/openapi.json").json()["paths"]
 
         self.assertIn("/api/v1/messages", paths)
+        self.assertIn("/api/v1/messages/stream", paths)
+        self.assertIn("/api/v1/conversations", paths)
+        self.assertIn("/api/v1/conversations/{thread_id}", paths)
         self.assertIn("/api/v1/logs/confirm", paths)
+        self.assertIn("/api/v1/logs/cancel", paths)
 
     def test_log_returns_stable_thread_and_draft_without_saving(self):
         data = self._create_expense_draft()
@@ -95,6 +99,46 @@ class ConversationApiTests(unittest.TestCase):
             data["thread_id"], db_path=self.settings.database_path
         )
         self.assertEqual([item["role"] for item in messages], ["user", "assistant"])
+        self.assertEqual(messages[-1]["metadata"]["draft"]["wealth"][0]["amount"], 450)
+
+    def test_conversation_list_and_detail_return_persisted_history(self):
+        data = self._create_expense_draft()
+
+        listing = self.client.get("/api/v1/conversations")
+        detail = self.client.get(f"/api/v1/conversations/{data['thread_id']}")
+
+        self.assertEqual(listing.status_code, 200)
+        item = listing.json()["data"]["items"][0]
+        self.assertEqual(item["id"], data["thread_id"])
+        self.assertEqual(item["title"], "I spent 450 on groceries")
+        self.assertEqual(item["message_count"], 2)
+        self.assertEqual(detail.status_code, 200)
+        messages = detail.json()["data"]["messages"]
+        self.assertEqual([message["role"] for message in messages], ["user", "assistant"])
+        self.assertEqual(messages[-1]["metadata"]["response_type"], "log_draft")
+
+    def test_missing_conversation_returns_safe_not_found(self):
+        response = self.client.get("/api/v1/conversations/missing-thread")
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["message"], "Conversation not found.")
+
+    def test_stream_emits_status_deltas_and_typed_completion(self):
+        with patch(
+            "life_copilot.agent.nodes.generate_gemini_content",
+            side_effect=self._log_provider,
+        ):
+            response = self.client.post(
+                "/api/v1/messages/stream",
+                json={"message": "I spent 450 on groceries"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.headers["content-type"].startswith("text/event-stream"))
+        self.assertIn("event: status", response.text)
+        self.assertIn("event: message.delta", response.text)
+        self.assertIn("event: message.complete", response.text)
+        self.assertIn('"response_type": "log_draft"', response.text)
 
     def test_confirm_persists_draft_and_confirmation_metadata(self):
         draft_data = self._create_expense_draft()
@@ -121,6 +165,25 @@ class ConversationApiTests(unittest.TestCase):
             draft_data["thread_id"], db_path=self.settings.database_path
         )
         self.assertEqual(messages[-1]["metadata"]["event"], "confirmed_records")
+
+    def test_cancel_persists_dismissal_without_saving_records(self):
+        draft_data = self._create_expense_draft()
+
+        response = self.client.post(
+            "/api/v1/logs/cancel",
+            json={"thread_id": draft_data["thread_id"]},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["response_type"], "cancellation")
+        self.assertEqual(
+            storage.list_domain_logs("wealth", db_path=self.settings.database_path),
+            [],
+        )
+        messages = storage.get_chat_messages(
+            draft_data["thread_id"], db_path=self.settings.database_path
+        )
+        self.assertEqual(messages[-1]["metadata"]["event"], "draft_cancelled")
 
     def test_query_returns_evidence_and_preserves_supplied_thread_id(self):
         storage.init_sqlite_db(self.settings.database_path)

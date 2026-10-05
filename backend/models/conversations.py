@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -52,9 +52,48 @@ class MessageData(BaseModel):
     confidence: float | None = Field(default=None, ge=0, le=1)
 
 
+class ConversationMessageData(BaseModel):
+    id: int = Field(gt=0)
+    role: Literal["user", "assistant"]
+    content: str
+    metadata: dict[str, Any] | None = None
+    created_at: datetime
+
+
+class ConversationSummaryData(BaseModel):
+    id: ThreadId
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    message_count: int = Field(ge=0)
+    last_message: str | None = None
+
+
+class ConversationListData(BaseModel):
+    items: list[ConversationSummaryData] = Field(default_factory=list)
+
+
+class ConversationDetailData(BaseModel):
+    id: ThreadId
+    title: str
+    created_at: datetime
+    updated_at: datetime
+    messages: list[ConversationMessageData] = Field(default_factory=list)
+
+
 class ConfirmLogRequest(BaseModel):
     thread_id: ThreadId
     draft: DailyLogDraft
+
+
+class CancelLogRequest(BaseModel):
+    thread_id: ThreadId
+
+
+class CancelLogData(BaseModel):
+    thread_id: ThreadId
+    response_type: Literal["cancellation"] = "cancellation"
+    assistant_text: str = "Draft cancelled. Nothing was saved."
 
 
 class SavedRecordCounts(BaseModel):

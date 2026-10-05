@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, datetime
 from functools import lru_cache
 from typing import Any, Literal
 from uuid import uuid4
@@ -94,6 +94,50 @@ class LearningSearchResult(BaseModel):
     hits: list[LearningSearchHitResult] = Field(default_factory=list)
     mode: Literal["vector", "sqlite_fallback", "empty"]
     warning: str | None = None
+
+
+class AppPreferencesResult(BaseModel):
+    default_currency: str
+    weekly_spending_limit: float | None = None
+    weekly_learning_minutes: int
+    weekly_workouts: int
+    sleep_hours_target: float
+    updated_at: datetime
+
+
+class ProviderConfigurationResult(BaseModel):
+    provider: str
+    capability: str
+    model: str
+    configured: bool
+
+
+class SettingsResult(BaseModel):
+    preferences: AppPreferencesResult
+    providers: list[ProviderConfigurationResult] = Field(default_factory=list)
+
+
+class BackupResult(BaseModel):
+    backup_name: str
+    created_at: datetime
+    includes: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class WeeklyReviewResult(BaseModel):
+    id: int
+    period_start: date
+    period_end: date
+    title: str
+    summary: str
+    evidence: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime
+
+
+class WeeklyReviewsResult(BaseModel):
+    reviews: list[WeeklyReviewResult] = Field(default_factory=list)
+    generation_available: bool = False
+    message: str | None = None
 
 
 class DashboardDateRangeResult(BaseModel):
@@ -329,6 +373,18 @@ class LifeCopilotApiClient:
             LearningSearchResult,
             params=params,
         )
+
+    def get_settings(self) -> SettingsResult:
+        return self._request("GET", "/settings", SettingsResult)
+
+    def update_settings(self, payload: dict[str, Any]) -> SettingsResult:
+        return self._request("PATCH", "/settings", SettingsResult, json=payload)
+
+    def create_backup(self) -> BackupResult:
+        return self._request("POST", "/data/backups", BackupResult)
+
+    def list_weekly_reviews(self) -> WeeklyReviewsResult:
+        return self._request("GET", "/insights/weekly", WeeklyReviewsResult)
 
     def list_records(
         self,

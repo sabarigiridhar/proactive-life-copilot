@@ -29,6 +29,7 @@ AUDIO_TYPES = {
     "audio/flac": ".flac",
     "audio/x-flac": ".flac",
     "audio/ogg": ".ogg",
+    "audio/webm": ".webm",
 }
 IMAGE_TYPES = {
     "image/jpeg": "JPEG",
