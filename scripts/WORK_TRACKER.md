@@ -38,7 +38,7 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 | P1 | Reliable Capture and Daily Check-in | Done | None | Validated, editable multimodal logging |
 | P2 | Memory and Trustworthy Retrieval | Done | P1 | Multi-turn, evidence-based answers |
 | P3 | FastAPI Backend | Done | P1, P2 | Stable API usable by any frontend |
-| P4 | Dashboard and Domain Pages | Not Started | P1, preferably P3 | Visible and editable personal data |
+| P4 | Dashboard and Domain Pages | In Progress | P1, preferably P3 | Visible and editable personal data |
 | P5 | Next.js Frontend | Not Started | P3, P4 UX validated | Full-control production frontend |
 | P6 | Proactive Copilot | Not Started | P2, P3 | Weekly insights, goals, and alerts |
 | P7 | Production Readiness | Not Started | P3-P6 as applicable | Secure, deployable, recoverable app |
@@ -341,39 +341,40 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 # P4: Dashboard and Domain Pages
 
-**Epic state:** `Not Started`  
+**Epic state:** `In Progress`
+
 **Goal:** Make every stored record visible, understandable, filterable, and correctable.
 
 ## P4-F1: Navigation and Home Dashboard
 
 ### P4-US1: See the important daily information around chat
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P4-T01 | Add Streamlit multipage navigation. | Not Started | P3 preferred | |
-| [ ] | P4-T02 | Build desktop three-column home layout. | Not Started | P4-T01 | |
-| [ ] | P4-T03 | Add spending trend and category breakdown on the left. | Not Started | P3-T20 | |
-| [ ] | P4-T04 | Keep chat and multimodal logging in the center. | Not Started | P4-T02 | |
-| [ ] | P4-T05 | Add health, learning, and daily completion metrics on the right. | Not Started | P3-T20 | |
-| [ ] | P4-T06 | Collapse side panels appropriately on narrow screens. | Not Started | P4-T02 | |
-| [ ] | P4-T07 | Add loading, empty, partial-data, and error states. | Not Started | P4-T03-P4-T05 | |
+| [x] | P4-T01 | Add Streamlit multipage navigation. | Done | P3 preferred | Added top navigation for the home dashboard and record correction workspace. |
+| [x] | P4-T02 | Build desktop three-column home layout. | Done | P4-T01 | Added a wide wealth/chat/life layout with stable panel sizing. |
+| [x] | P4-T03 | Add spending trend and category breakdown on the left. | Done | P3-T20 | Added currency-aware totals, seven-day trend, and top expense categories. |
+| [x] | P4-T04 | Keep chat and multimodal logging in the center. | Done | P4-T02 | Preserved chat, evidence, draft confirmation, voice, image, and text workflows. |
+| [x] | P4-T05 | Add health, learning, and daily completion metrics on the right. | Done | P3-T20 | Added status badges, progress, sleep, workout, learning, streak, and active-day metrics. |
+| [x] | P4-T06 | Collapse side panels appropriately on narrow screens. | Done | P4-T02 | Mobile CSS moves chat first and stacks wealth and life panels without overlap. |
+| [x] | P4-T07 | Add loading, empty, partial-data, and error states. | Done | P4-T03-P4-T05 | Added safe loading and API errors plus domain-specific empty and missing-data states. |
 
 ## P4-F2: Wealth Page
 
 ### P4-US2: Inspect and maintain wealth records
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P4-T08 | Add date, type, category, and merchant filters. | Not Started | P3-T17 | |
-| [ ] | P4-T09 | Show income, expense, and net totals. | Not Started | P2-US2 | |
-| [ ] | P4-T10 | Add category and time-series charts. | Not Started | P4-T08 | |
-| [ ] | P4-T11 | Add paginated searchable transaction table. | Not Started | P3-T17 | |
-| [ ] | P4-T12 | Add edit and confirmed-delete actions. | Not Started | P3-T18-P3-T19 | |
-| [ ] | P4-T13 | Add filtered CSV export. | Not Started | P4-T08 | |
+| [x] | P4-T08 | Add date, type, category, and merchant filters. | Done | P3-T17 | Added all-time, preset, and custom dates plus type, currency, category, merchant, and full-text filters. |
+| [x] | P4-T09 | Show income, expense, and net totals. | Done | P2-US2 | Added currency-safe summary metrics without combining unlike currencies. |
+| [x] | P4-T10 | Add category and time-series charts. | Done | P4-T08 | Added filtered cash-flow and case-normalized expense-category charts with visible date ranges. |
+| [x] | P4-T11 | Add paginated searchable transaction table. | Done | P3-T17 | Added configurable page sizes, record counts, search, and complete page navigation. |
+| [x] | P4-T12 | Add edit and confirmed-delete actions. | Done | P3-T18-P3-T19 | Added validated transaction editing and explicit permanent-delete confirmation through REST. |
+| [x] | P4-T13 | Add filtered CSV export. | Done | P4-T08 | Added export of the complete filtered public record set. |
 
 ## P4-F3: Health Page
 
@@ -393,14 +394,14 @@ Phase 0 is intentionally omitted. Update this file in the same pull request or c
 
 ### P4-US4: Browse and search learning history
 
-**State:** `Not Started`
+**State:** `Done`
 
 | Done | Task ID | Task | State | Depends on | Notes |
 | --- | --- | --- | --- | --- | --- |
-| [ ] | P4-T19 | Show learning minutes, streak, and topic distribution. | Not Started | P2-US2 | |
-| [ ] | P4-T20 | Add semantic search with topic/date filters. | Not Started | P2-US3 | |
-| [ ] | P4-T21 | Show source links and retrieved summary text. | Not Started | P4-T20 | |
-| [ ] | P4-T22 | Add editable learning table with synchronized vector updates. | Not Started | P3-F3 | |
+| [x] | P4-T19 | Show learning minutes, streak, and topic distribution. | Done | P2-US2 | Added period-aware metrics and activity/topic charts. |
+| [x] | P4-T20 | Add semantic search with topic/date filters. | Done | P2-US3 | Added typed `/api/v1/learning/search` contract and filtered UI. |
+| [x] | P4-T21 | Show source links and retrieved summary text. | Done | P4-T20 | Results are SQLite-verified and render safe external links. |
+| [x] | P4-T22 | Add editable learning table with synchronized vector updates. | Done | P3-F3 | Paginated edit/delete UI uses the existing synchronized API workflows. |
 
 ### P4-US5: Read weekly reviews and manage settings
 
@@ -629,7 +630,7 @@ Use this section as a short sprint board. Keep only current work here; canonical
 
 | Item ID | Description | Owner | State | Branch/PR | Next action |
 | --- | --- | --- | --- | --- | --- |
-| P4-US1 | See the important daily information around chat | - | Ready | - | Add navigation and build the responsive dashboard around the existing API-backed chat. |
+| P4-US3 | Understand health consistency | - | Ready | - | Add health trends, target-backed meters, missing-data states, and editable records. |
 
 ## Blockers and Decisions
 
@@ -643,6 +644,9 @@ Use `BLK-###` for blockers and `DEC-###` for decisions. Important architecture d
 
 | Date | Item IDs | Update | Author |
 | --- | --- | --- | --- |
+| 2026-10-05 | P4-US4, P4-T19-P4-T22 | Added a Learning page with period-aware minutes and streak metrics, activity/topic charts, filtered semantic search, verified summaries and safe source links, plus paginated synchronized edit/delete workflows. | Codex |
+| 2026-10-05 | P4-US2, P4-T08-P4-T13 | Added a professional Wealth page with REST-backed filters, currency-safe totals, cash-flow and normalized category charts, paginated search, validated edit/delete workflows, and filtered CSV export. | Codex |
+| 2026-10-04 | P4-US1, P4-T01-P4-T07 | Added professional top navigation, a responsive three-column API-backed home dashboard, currency-aware wealth charts, health/learning/completion metrics, mobile chat-first stacking, and complete loading/empty/error states. | Codex |
 | 2026-10-04 | P3-US5, P3-T22-P3-T25 | Added a typed Streamlit HTTP client, moved chat, confirmation, media, dashboard status, and record maintenance onto public API contracts, added loading/error states, and verified the workflow with mocked HTTP and Streamlit tests. | Codex |
 | 2026-10-04 | P3-US4, P3-T17-P3-T21 | Added paginated and filtered record APIs, validated partial updates, confirmed deletes, synchronized learning vectors, typed dashboard aggregates, and API integration tests. | Codex |
 | 2026-10-04 | P3-US3, P3-T12-P3-T16 | Added bounded multipart audio/image APIs with MIME and content validation, configurable limits, sanitized provider failures, guaranteed audio cleanup, and integration tests. | Codex |

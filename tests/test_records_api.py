@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from backend.core.settings import Settings
 from backend.main import create_app
 from life_copilot import storage
+from life_copilot.retrieval.models import LearningSearchResult
 
 
 class FakeVectorCollection:
@@ -114,6 +115,72 @@ class RecordsApiTests(unittest.TestCase):
         self.assertIn("/api/v1/logs/{domain}", paths)
         self.assertIn("/api/v1/logs/{domain}/{record_id}", paths)
         self.assertIn("/api/v1/dashboard/summary", paths)
+        self.assertIn("/api/v1/learning/search", paths)
+
+    def test_learning_search_forwards_semantic_filters_and_returns_verified_hits(self):
+        captured = []
+
+        def fake_search(request, settings):
+            captured.append((request, settings))
+            return LearningSearchResult.model_validate(
+                {
+                    "request": request,
+                    "hits": [
+                        {
+                            "record_id": self.learning_ids[0],
+                            "entry_date": "2026-10-01",
+                            "topic": "RAG",
+                            "summary_text": "Retrieval notes",
+                            "duration_minutes": 30,
+                            "url_reference": "https://example.com/rag",
+                            "distance": 0.12,
+                        }
+                    ],
+                    "mode": "vector",
+                }
+            )
+
+        with patch(
+            "backend.api.v1.learning.search_learning_history",
+            side_effect=fake_search,
+        ):
+            response = self.client.get(
+                "/api/v1/learning/search",
+                params={
+                    "query": "retrieval quality",
+                    "topic": "RAG",
+                    "start_date": "2026-10-01",
+                    "end_date": "2026-10-02",
+                    "limit": 5,
+                },
+            )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()["data"]
+        self.assertEqual(data["hits"][0]["summary_text"], "Retrieval notes")
+        self.assertEqual(data["hits"][0]["url_reference"], "https://example.com/rag")
+        request, settings = captured[0]
+        self.assertEqual(request.topic, "RAG")
+        self.assertEqual(request.start_date.isoformat(), "2026-10-01")
+        self.assertEqual(request.end_date.isoformat(), "2026-10-02")
+        self.assertEqual(request.limit, 5)
+        self.assertEqual(settings.database_path, self.settings.database_path)
+
+    def test_learning_search_rejects_blank_query_and_reversed_dates(self):
+        blank = self.client.get(
+            "/api/v1/learning/search", params={"query": "   "}
+        )
+        reversed_range = self.client.get(
+            "/api/v1/learning/search",
+            params={
+                "query": "retrieval",
+                "start_date": "2026-10-02",
+                "end_date": "2026-10-01",
+            },
+        )
+
+        self.assertEqual(blank.status_code, 422)
+        self.assertEqual(reversed_range.status_code, 422)
 
     def test_list_logs_is_paginated_and_excludes_private_metadata(self):
         first = self.client.get(

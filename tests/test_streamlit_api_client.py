@@ -1,4 +1,5 @@
 import unittest
+from datetime import date
 
 import httpx
 
@@ -11,6 +12,71 @@ def envelope(data=None, *, success=True, message=None):
         "data": data,
         "error": None if success else {"code": "test_error", "message": message},
         "request_id": "test-request",
+    }
+
+
+def dashboard_data():
+    return {
+        "date_range": {
+            "start_date": "2026-09-28",
+            "end_date": "2026-10-04",
+        },
+        "status_date": "2026-10-04",
+        "daily_status": {
+            "entry_date": "2026-10-04",
+            "health_complete": False,
+            "wealth_reviewed": True,
+            "learning_complete": False,
+            "is_complete": False,
+        },
+        "wealth": {
+            "income": [],
+            "expenses": [
+                {"currency": "INR", "total": 350, "records": 2}
+            ],
+            "net": [
+                {
+                    "currency": "INR",
+                    "income": 0,
+                    "expense": 350,
+                    "net": -350,
+                }
+            ],
+            "categories": [
+                {
+                    "category": "Food",
+                    "currency": "INR",
+                    "total": 350,
+                    "records": 2,
+                }
+            ],
+            "daily": [
+                {
+                    "entry_date": "2026-10-04",
+                    "currency": "INR",
+                    "income": 0,
+                    "expense": 350,
+                    "net": -350,
+                }
+            ],
+        },
+        "health": {
+            "average_sleep_hours": None,
+            "average_calories": None,
+            "sleep_records": 0,
+            "calorie_records": 0,
+            "workout_days": 0,
+            "daily": [],
+        },
+        "learning": {
+            "total_minutes": 0,
+            "sessions": 0,
+            "learning_days": 0,
+            "current_streak_days": 0,
+            "longest_streak_days": 0,
+            "topics": [],
+            "daily": [],
+        },
     }
 
 
@@ -169,18 +235,7 @@ class StreamlitApiClientTests(unittest.TestCase):
             if path.endswith("/dashboard/summary"):
                 return httpx.Response(
                     200,
-                    json=envelope(
-                        {
-                            "status_date": "2026-10-04",
-                            "daily_status": {
-                                "entry_date": "2026-10-04",
-                                "health_complete": False,
-                                "wealth_reviewed": True,
-                                "learning_complete": False,
-                                "is_complete": False,
-                            },
-                        }
-                    ),
+                    json=envelope(dashboard_data()),
                 )
             if request.method == "PATCH":
                 return httpx.Response(
@@ -208,15 +263,109 @@ class StreamlitApiClientTests(unittest.TestCase):
             draft={"entry_date": "2026-10-04"},
         )
         dashboard = client.get_dashboard_summary(
-            status_date=confirmation.daily_status.entry_date
+            status_date=confirmation.daily_status.entry_date,
+            start_date=date(2026, 9, 28),
+            end_date=date(2026, 10, 4),
         )
         updated = client.patch_record("wealth", 1, {"amount": 125})
         deleted = client.delete_record("wealth", 1)
 
         self.assertTrue(confirmation.daily_status.wealth_reviewed)
         self.assertEqual(dashboard.status_date.isoformat(), "2026-10-04")
+        self.assertEqual(dashboard.wealth.expenses[0].total, 350)
         self.assertEqual(updated.record["amount"], 125)
         self.assertEqual(deleted.deleted_id, 1)
+        client.close()
+
+    def test_record_filters_and_multi_page_loading_use_public_query_contract(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            page = int(request.url.params["page"])
+            return httpx.Response(
+                200,
+                json=envelope(
+                    {
+                        "domain": "wealth",
+                        "items": [{"id": page}],
+                        "page": page,
+                        "page_size": 200,
+                        "total": 2,
+                        "total_pages": 2,
+                    }
+                ),
+            )
+
+        client = self._client(handler)
+        records = client.list_all_records(
+            "wealth",
+            start_date=date(2026, 10, 1),
+            end_date=date(2026, 10, 5),
+            search="market",
+            transaction_type="Expense",
+            currency="INR",
+            category="Food",
+            merchant="shop",
+        )
+
+        self.assertEqual([record["id"] for record in records], [1, 2])
+        self.assertEqual(len(requests), 2)
+        params = requests[0].url.params
+        self.assertEqual(params["start_date"], "2026-10-01")
+        self.assertEqual(params["end_date"], "2026-10-05")
+        self.assertEqual(params["transaction_type"], "Expense")
+        self.assertEqual(params["category"], "Food")
+        self.assertEqual(params["merchant"], "shop")
+        client.close()
+
+    def test_learning_search_uses_typed_semantic_search_contract(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(
+                200,
+                json=envelope(
+                    {
+                        "request": {
+                            "query_text": "retrieval quality",
+                            "topic": "RAG",
+                            "start_date": "2026-10-01",
+                            "end_date": "2026-10-05",
+                            "limit": 10,
+                        },
+                        "hits": [
+                            {
+                                "record_id": 7,
+                                "entry_date": "2026-10-02",
+                                "topic": "RAG",
+                                "summary_text": "Use grounded evaluation cases.",
+                                "duration_minutes": 30,
+                                "url_reference": "https://example.com/rag",
+                                "distance": 0.2,
+                            }
+                        ],
+                        "mode": "vector",
+                        "warning": None,
+                    }
+                ),
+            )
+
+        client = self._client(handler)
+        result = client.search_learning(
+            "retrieval quality",
+            topic="RAG",
+            start_date=date(2026, 10, 1),
+            end_date=date(2026, 10, 5),
+        )
+
+        self.assertEqual(result.hits[0].record_id, 7)
+        self.assertEqual(result.hits[0].summary_text, "Use grounded evaluation cases.")
+        self.assertEqual(requests[0].url.path, "/api/v1/learning/search")
+        self.assertEqual(requests[0].url.params["topic"], "RAG")
+        self.assertEqual(requests[0].url.params["start_date"], "2026-10-01")
+        self.assertEqual(requests[0].url.params["end_date"], "2026-10-05")
         client.close()
 
 
